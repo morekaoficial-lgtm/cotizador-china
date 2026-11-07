@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cotizador de Importaciones China → México</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+  <!-- HEADER -->
+  <header class="bg-gradient-to-r from-red-600 to-amber-500 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
+      <div>
+        <h1 class="text-lg sm:text-2xl font-bold">🇨🇳➡️🇲🇽 Cotizador de Importaciones</h1>
+        <p class="text-xs sm:text-sm opacity-90">Costo unitario puesto en México · Consolidados Yiwu</p>
+      </div>
+      <div class="flex flex-col items-end gap-1">
+        <span id="connBadge" class="text-xs px-3 py-1 rounded-full bg-white/20 font-medium">⏳ Conectando…</span>
+        <span id="tarifaHeader" class="text-xs sm:text-sm font-semibold"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <nav class="max-w-6xl mx-auto px-4 mt-4">
+    <div class="flex gap-2 overflow-x-auto pb-1" id="tabs">
+      <button data-tab="tab-cotizador" class="tab-btn tab-active">📥 Cotización</button>
+      <button data-tab="tab-borradores" class="tab-btn">📋 Borradores <span id="countBorradores" class="badge"></span></button>
+      <button data-tab="tab-comprados" class="tab-btn">🛒 Comprados <span id="countComprados" class="badge"></span></button>
+      <button data-tab="tab-consolidados" class="tab-btn">📦 Consolidados</button>
+      <button data-tab="tab-reportes" class="tab-btn">📊 Reportes</button>
+      <button data-tab="tab-config" class="tab-btn">⚙️ Configuración</button>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 pb-20">
+
+    <!-- ============ TAB: COTIZADOR ============ -->
+    <section id="tab-cotizador" class="tab-panel">
+      <div class="grid lg:grid-cols-2 gap-6">
+
+        <!-- FORM -->
+        <div class="card">
+          <h2 class="section-title">📥 Datos de la Cotización</h2>
+          <div class="grid gap-4">
+            <div>
+              <label class="lbl">Concepto / Descripción del producto *</label>
+              <input id="f_concepto" class="inp" placeholder="Ej. Tazas de cerámica 11oz" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="lbl">Proveedor</label>
+                <input id="f_proveedor" class="inp" list="datalistProveedores" placeholder="Selecciona o escribe proveedor" />
+                <datalist id="datalistProveedores"></datalist>
+              </div>
+              <div>
+                <label class="lbl">Ciudad de origen</label>
+                <input id="f_ciudad" class="inp" placeholder="Yiwu, Guangzhou..." />
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div><label class="lbl">Largo (cm) *</label><input id="f_largo" type="number" min="0" step="0.1" class="inp" placeholder="60" /></div>
+              <div><label class="lbl">Ancho (cm) *</label><input id="f_ancho" type="number" min="0" step="0.1" class="inp" placeholder="40" /></div>
+              <div><label class="lbl">Alto (cm) *</label><input id="f_alto" type="number" min="0" step="0.1" class="inp" placeholder="50" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="lbl">Cajas / Cartones *</label><input id="f_cajas" type="number" min="0" class="inp" placeholder="100" /></div>
+              <div><label class="lbl">Piezas por caja (Pcs/CTN) *</label><input id="f_piezas" type="number" min="0" class="inp" placeholder="24" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="lbl">Precio fábrica (EXW) *</label>
+                <div class="flex gap-2">
+                  <input id="f_precio" type="number" min="0" step="0.01" class="inp" placeholder="1.85" />
+                  <select id="f_precio_moneda" class="inp !w-24">
+                    <option value="USD">USD $</option>
+                    <option value="CNY">CNY ¥</option>
+                  </select>
+                </div>
+              </div>
+              <div><label class="lbl">Peso por caja (kg)</label><input id="f_peso" type="number" min="0" step="0.01" class="inp" placeholder="12.5" /></div>
+            </div>
+            <div>
+              <label class="lbl">Costo envío a almacén Yiwu (total) *</label>
+              <div class="flex gap-2">
+                <input id="f_yiwu" type="number" min="0" step="0.01" class="inp" placeholder="350" />
+                <select id="f_yiwu_moneda" class="inp !w-24">
+                  <option value="USD">USD $</option>
+                  <option value="CNY">CNY ¥</option>
+                </select>
+              </div>
+              <p class="text-xs text-slate-500 mt-1">Flete interno China (total del embarque, no por caja).</p>
+            </div>
+            <div>
+              <label class="lbl">Tipo de cambio de referencia (¥/US$)</label>
+              <input id="f_tc" type="number" min="0" step="0.0001" class="inp" value="7.20" />
+              <p class="text-xs text-slate-500 mt-1">Solo referencia. Los anticipos se congelan al TC del momento; los saldos se actualizan al TC de pago.</p>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+              <input type="checkbox" id="f_gestor" class="w-4 h-4 accent-red-600" />
+              <label for="f_gestor" class="text-sm text-slate-700 cursor-pointer">
+                <span class="font-semibold">Incluir gestor local (5%)</span>
+                <span class="text-xs text-slate-500 block">Solo si el gestor acompaña a las negociaciones presenciales con este proveedor.</span>
+              </label>
+            </div>
+            <button id="btnGuardarBorrador" class="btn-primary w-full">💾 Guardar en Borrador Inicial</button>
+            <p id="formMsg" class="text-sm hidden"></p>
+          </div>
+        </div>
+
+        <!-- RESULTS -->
+        <div class="card">
+          <h2 class="section-title">🧮 Cálculo en Vivo</h2>
+          <div id="liveResults" class="grid gap-2 text-sm"></div>
+          <div class="mt-4 p-4 rounded-xl bg-emerald-600 text-white text-center shadow">
+            <p class="text-xs uppercase tracking-wide opacity-80">Costo final unitario puesto en México</p>
+            <p id="r_costoFinal" class="text-3xl font-extrabold mt-1">—</p>
+          </div>
+          <div class="mt-3 p-4 rounded-xl bg-slate-800 text-white text-center">
+            <p class="text-xs uppercase tracking-wide opacity-70">Costo total del embarque</p>
+            <p id="r_costoTotal" class="text-2xl font-bold mt-1">—</p>
+          </div>
+          <p class="text-xs text-slate-500 mt-3">Tarifa global aplicada: <strong id="r_tarifaUsada"></strong> USD/m³ (todo incluido: flete internacional + agencia aduanal en México). Comisión envío de dinero 3% incluida.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: BORRADORES ============ -->
+    <section id="tab-borradores" class="tab-panel hidden">
+      <div class="flex flex-wrap gap-2 mb-4" id="filtrosEstado">
+        <button data-f="" class="filter-btn filter-active">Todos</button>
+        <button data-f="borrador_inicial" class="filter-btn">📝 Borrador Inicial</button>
+        <button data-f="borrador_completo" class="filter-btn">✅ Borrador Completo</button>
+      </div>
+      <div id="listaBorradores" class="grid md:grid-cols-2 gap-4"></div>
+      <p id="emptyBorradores" class="text-center text-slate-400 py-10 hidden">No hay registros en este estado. Captura tu primera cotización. 🚀</p>
+    </section>
+
+    <!-- ============ TAB: COMPRADOS ============ -->
+    <section id="tab-comprados" class="tab-panel hidden">
+      <div id="listaComprados" class="grid md:grid-cols-2 gap-4"></div>
+      <p id="emptyComprados" class="text-center text-slate-400 py-10 hidden">No hay ítems comprados. Completa los datos del proveedor y marca como comprado.</p>
+      <div class="card mt-6" style="border:2px dashed #f59e0b">
+        <h2 class="section-title">🔒 Cierre de Compra Global</h2>
+        <p id="cierreResumen" class="text-sm text-slate-600"></p>
+        <div id="cierreContenido" class="mt-3"></div>
+        <button id="btnCierreGlobal" class="btn-primary mt-3">🔒 Cerrar compra global y consolidar</button>
+        <p class="text-xs text-slate-500 mt-2">Consolida todos los ítems <strong>Comprado</strong> en un solo envío, calculando el volumen cobrable total y el costo del flete a México.</p>
+      </div>
+    </section>
+
+    <!-- ============ TAB: CONSOLIDADOS ============ -->
+    <section id="tab-consolidados" class="tab-panel hidden">
+      <div class="card mb-6">
+        <h2 class="section-title">🚢 Nuevo Consolidado de Envío</h2>
+        <div class="grid md:grid-cols-3 gap-4">
+          <div><label class="lbl">Nombre del consolidado *</label><input id="c_nombre" class="inp" placeholder="Consolidado Yiwu Noviembre 2026" /></div>
+          <div><label class="lbl">Tarifa m³ ajustada (USD) *</label><input id="c_tarifa" type="number" min="0" step="0.01" class="inp" placeholder="800" /></div>
+          <div class="flex items-end"><button id="btnCrearConsolidado" class="btn-primary w-full">📦 Crear Consolidado</button></div>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">Incluye automáticamente todos los ítems con estado <strong>Comprado</strong>. La tarifa se puede reajustar si el transportista modifica el costo al momento del envío.</p>
+        <div id="previewConsolidado" class="mt-4 hidden">
+          <h3 class="font-semibold mb-2">Vista previa con tarifa ajustada:</h3>
+          <div class="overflow-x-auto"><table class="tbl" id="tblPreviewCons"></table></div>
+          <p class="text-xs text-slate-500 mt-2">⚠️ Al crear el consolidado, los ítems quedan cerrados y ligados a este envío. Podrás reajustar la tarifa después.</p>
+        </div>
+      </div>
+      <h2 class="section-title">📦 Consolidados Registrados <span id="countConsolidados" class="badge"></span></h2>
+      <div id="listaConsolidados" class="grid gap-4"></div>
+      <p id="emptyConsolidados" class="text-center text-slate-400 py-8 hidden">Aún no hay consolidados. Marca ítems como "Comprado" y crea el primero.</p>
+    </section>
+
+    <!-- ============ TAB: REPORTES ============ -->
+    <section id="tab-reportes" class="tab-panel hidden">
+      <div class="card mb-6">
+        <h2 class="section-title">📊 Reportes y Balances</h2>
+        <div class="grid md:grid-cols-3 gap-4 mb-4">
+          <button onclick="generarReporte('proveedores')" class="btn-secondary w-full">🏭 Balance por Proveedor</button>
+          <button onclick="generarReporte('global')" class="btn-secondary w-full">🌍 Compra Global Detallada</button>
+          <button onclick="generarReporte('importador')" class="btn-secondary w-full">💰 Balance al Importador</button>
+        </div>
+        <div id="reporteContainer" class="hidden">
+          <div class="flex justify-between items-center mb-3">
+            <h3 id="reporteTitulo" class="font-bold text-lg"></h3>
+            <button onclick="window.print()" class="btn-secondary text-xs px-3 py-1.5">🖨️ Imprimir</button>
+          </div>
+          <div id="reporteContenido" class="overflow-x-auto"></div>
+        </div>
+        <p id="reporteVacio" class="text-center text-slate-400 py-8">Selecciona un reporte para visualizarlo.</p>
+      </div>
+
+      <div class="card mb-6">
+        <h2 class="section-title">📜 Histórico de Compras</h2>
+        <div class="grid md:grid-cols-4 gap-3 mb-4">
+          <div><label class="lbl">Desde</label><input id="histDesde" type="date" class="inp" /></div>
+          <div><label class="lbl">Hasta</label><input id="histHasta" type="date" class="inp" /></div>
+          <div><label class="lbl">Proveedor</label><select id="histProv" class="inp"><option value="">Todos</option></select></div>
+          <div><label class="lbl">Moneda</label><select id="histMoneda" class="inp"><option value="">Todas</option><option value="USD">USD</option><option value="CNY">CNY</option></select></div>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <button onclick="generarHistorico()" class="btn-primary">🔍 Buscar</button>
+          <button onclick="limpiarHistorico()" class="btn-secondary">Limpiar</button>
+        </div>
+        <div id="historicoContenido" class="overflow-x-auto"></div>
+        <p id="historicoVacio" class="text-center text-slate-400 py-8">Aplica filtros para ver el histórico de compras.</p>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">🏭 Base de Proveedores</h2>
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button onclick="renderProveedores()" class="btn-secondary text-sm">🔄 Actualizar lista</button>
+        </div>
+        <div id="listaProveedores" class="overflow-x-auto"></div>
+        <p id="emptyProveedores" class="text-center text-slate-400 py-4 hidden">No hay proveedores registrados. Se guardan automáticamente al capturar cotizaciones.</p>
+      </div>
+    </section>
+
+    <!-- ============ TAB: CONFIG ============ -->
+    <section id="tab-config" class="tab-panel hidden">
+      <div class="card max-w-xl">
+        <h2 class="section-title">⚙️ Configuración Global</h2>
+        <label class="lbl">Tarifa por metro cúbico (USD/m³) — todo incluido</label>
+        <input id="cfg_tarifa" type="number" min="0" step="0.01" class="inp" />
+        <p class="text-xs text-slate-500 mt-1">Incluye flete internacional China→México y agencia aduanal/importación.</p>
+        <label class="lbl mt-4">URL del Backend API (opcional)</label>
+        <input id="cfg_api" class="inp" placeholder="https://api.tudominio.com (vacío = mismo origen / localStorage)" />
+        <label class="lbl mt-4">Cobro de metros cúbicos</label>
+        <select id="cfg_modo" class="inp">
+          <option value="fraccion">Fracción exacta — se cobra el m³ fraccionado (ej. 12.35 m³)</option>
+          <option value="completo">m³ completos — redondear hacia arriba (ej. 13 m³)</option>
+        </select>
+        <p class="text-xs text-slate-500 mt-1">Cómo te cobra la fletera: por fracciones exactas de m³ o solo metros cúbicos completos.</p>
+        <button id="btnGuardarConfig" class="btn-primary mt-4 w-full">💾 Guardar Configuración</button>
+        <p id="cfgMsg" class="text-sm mt-2 hidden"></p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========== PANTALLA CIERRE GLOBAL ========== -->
+  <div id="screenCierre" class="screen hidden fixed inset-0 z-50 bg-slate-100 overflow-y-auto">
+    <div class="max-w-6xl mx-auto px-4 py-6 pb-20">
+      <div class="flex items-center gap-3 mb-6">
+        <button onclick="volverMain()" class="btn-secondary">← Volver</button>
+        <h2 class="text-xl font-bold">🔒 Cierre de Compra Global</h2>
+        <span id="cierreNombre" class="text-sm text-slate-500"></span>
+      </div>
+
+      <div class="card mb-6">
+        <h3 class="section-title">⚙️ Configuración de Importación</h3>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div><label class="lbl">Tarifa (USD/m³)</label><input id="cg_tarifa" type="number" class="inp num" value="800" min="0" step="10"></div>
+          <div><label class="lbl">Tipo de cambio (¥/US$)</label><input id="cg_tc" type="number" class="inp num" value="7.20" min="0" step="0.01"></div>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">La importación siempre se cotiza en USD. Los saldos se actualizan al TC de pago; los anticipos quedan congelados con el TC del momento. El gestor local (5%) se habilita por cotización individual.</p>
+      </div>
+
+      <div id="cierreGlobalContent"></div>
+
+      <div class="card mt-6" style="border:2px solid #10b981">
+        <h3 class="section-title text-emerald-700">🧮 Totales Globales</h3>
+        <div id="cierreTotales" class="space-y-2 text-sm"></div>
+        <div class="mt-4 p-4 rounded-xl bg-emerald-600 text-white text-center">
+          <p class="text-xs uppercase tracking-wide opacity-80">TOTAL A PAGAR AL IMPORTADOR</p>
+          <p id="cierreTotalUSD" class="text-2xl font-bold mt-1">—</p>
+          <p id="cierreTotalCNY" class="text-lg font-semibold mt-1 opacity-90">—</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-3 mt-6">
+        <button onclick="mostrarDesgloseFinal()" class="btn-primary">📋 Ver desglose final del embarque</button>
+        <button onclick="mostrarDinerosImportador()" class="btn-primary" style="background:linear-gradient(90deg,#059669,#10b981)">💰 Detalle de dineros para el importador</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DESGLOSE FINAL DEL EMBARQUE ========== -->
+  <div id="screenDesglose" class="screen hidden fixed inset-0 z-50 bg-slate-100 overflow-y-auto">
+    <div class="max-w-6xl mx-auto px-4 py-6 pb-20">
+      <div class="flex items-center gap-3 mb-6">
+        <button onclick="volverCierre()" class="btn-secondary">← Volver al cierre</button>
+        <h2 class="text-xl font-bold">📋 Desglose Final del Embarque</h2>
+      </div>
+      <div class="card">
+        <div id="desgloseContenido"></div>
+        <div class="mt-6 p-4 rounded-xl bg-emerald-600 text-white text-center">
+          <p class="text-xs uppercase tracking-wide opacity-80">Saldo total a pagar al importador</p>
+          <p id="desgloseTotal" class="text-3xl font-extrabold mt-1">—</p>
+        </div>
+        <div class="flex flex-wrap gap-3 mt-6">
+          <button onclick="mostrarPago('anticipo')" class="btn-primary" style="background:linear-gradient(90deg,#2563eb,#3b82f6)">💵 Aplicar Anticipo</button>
+          <button onclick="mostrarPago('total')" class="btn-primary" style="background:linear-gradient(90deg,#059669,#10b981)">💳 Pago Total</button>
+          <button onclick="generarEstadoCuenta()" class="btn-secondary" style="background:linear-gradient(90deg,#7c3aed,#a78bfa);color:#fff">📊 Estado de Cuenta Final</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DINEROS PARA EL IMPORTADOR ========== -->
+  <div id="screenImportador" class="screen hidden fixed inset-0 z-50 bg-slate-100 overflow-y-auto">
+    <div class="max-w-6xl mx-auto px-4 py-6 pb-20">
+      <div class="flex items-center gap-3 mb-6">
+        <button onclick="volverCierre()" class="btn-secondary">← Volver al cierre</button>
+        <h2 class="text-xl font-bold">💰 Detalle de Dineros para el Importador</h2>
+      </div>
+      <div class="card mb-6">
+        <p class="text-sm text-slate-600 mb-4">El importador es nuestro operador del dinero: nosotros entregamos pesos y él paga en China en la moneda correspondiente.</p>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div><label class="lbl">Tipo de cambio USD → MXN</label><input id="di_tcu" type="number" class="inp num" value="18.20" min="0" step="0.01"></div>
+          <div><label class="lbl">Tipo de cambio CNY → MXN</label><input id="di_tcc" type="number" class="inp num" value="2.53" min="0" step="0.01"></div>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">Captura ambos tipos de cambio para arrojar los totales en pesos mexicanos.</p>
+      </div>
+      <div id="importadorContenido"></div>
+      <div class="card mt-6" style="border:2px solid #10b981">
+        <div class="text-center">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Total a entregar al importador en pesos mexicanos</p>
+          <p id="importadorTotalMXN" class="text-4xl font-extrabold text-emerald-600 mt-2">—</p>
+          <p id="importadorNotaAnt" class="text-xs text-slate-500 mt-2"></p>
+        </div>
+        <div class="flex flex-wrap gap-3 mt-6 justify-center">
+          <button onclick="mostrarPago('anticipo')" class="btn-primary" style="background:linear-gradient(90deg,#2563eb,#3b82f6)">💵 Aplicar Anticipo</button>
+          <button onclick="mostrarPago('total')" class="btn-primary" style="background:linear-gradient(90deg,#059669,#10b981)">💳 Pago Total</button>
+          <button onclick="generarEstadoCuenta()" class="btn-secondary" style="background:linear-gradient(90deg,#7c3aed,#a78bfa);color:#fff">📊 Estado de Cuenta Final</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PAGO (ANTICIPO / TOTAL) ========== -->
+  <div id="screenPago" class="screen hidden fixed inset-0 z-50 bg-slate-100 overflow-y-auto">
+    <div class="max-w-xl mx-auto px-4 py-6 pb-20">
+      <div class="flex items-center gap-3 mb-6">
+        <button onclick="cerrarPago()" class="btn-secondary">← Cancelar</button>
+        <h2 id="pagoTitulo" class="text-xl font-bold">—</h2>
+      </div>
+      <div class="card">
+        <div class="wf"><label class="lbl">Monto a pagar</label>
+          <div class="flex gap-2"><input id="pagoMonto" type="number" class="inp num" min="0" step="0.01" placeholder="2000">
+          <select id="pagoMoneda" class="inp !w-28"><option value="USD">USD $</option><option value="CNY">CNY ¥</option><option value="MXN">MXN $</option></select></div></div>
+        <div class="wf mt-3"><label class="lbl">Tipo de cambio aplicado (al momento del pago)</label>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="text-xs text-slate-500">USD → MXN</label><input id="pagoTCu" type="number" class="inp num" step="0.0001" placeholder="18.20"></div>
+            <div><label class="text-xs text-slate-500">CNY → MXN</label><input id="pagoTCc" type="number" class="inp num" step="0.0001" placeholder="2.53"></div>
+          </div></div>
+        <div class="wf mt-3"><label class="lbl">Fecha del pago</label><input id="pagoFecha" type="date" class="inp"></div>
+        <div class="wf mt-3"><label class="lbl">Concepto / Referencia</label><input id="pagoConcepto" class="inp" placeholder="Anticipo proveedor Yiwu Ceramics"></div>
+        <div id="pagoResumen" class="mt-4 p-3 bg-slate-50 rounded-lg text-sm"></div>
+        <button id="btnGuardarPago" class="btn-primary w-full mt-4">💾 Guardar y aplicar pago</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== MODALES ========== -->
+
+  <!-- MODAL PROVEEDOR -->
+  <div id="modalProveedor" class="modal hidden" style="display:none">
+    <div class="modal-box">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold">🏭 Datos del Proveedor</h3>
+        <button onclick="cerrarModal()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+      </div>
+      <div class="grid gap-3">
+        <div><label class="lbl">Nombre del producto *</label><input id="m_producto" class="inp" /></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="lbl">Proveedor *</label><input id="m_proveedor" class="inp" /></div>
+          <div><label class="lbl">Persona de atención *</label><input id="m_contacto" class="inp" /></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="lbl">Ciudad de origen *</label><input id="m_ciudad" class="inp" placeholder="Yiwu, Guangzhou…" /></div>
+          <div><label class="lbl">Teléfono (opcional)</label><input id="m_telefono" class="inp" placeholder="+86 …" /></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="lbl">Precio pactado *</label>
+            <div class="flex gap-2">
+              <input id="m_precio" type="number" min="0" step="0.01" class="inp" />
+              <select id="m_precio_moneda" class="inp !w-24"><option value="USD">USD $</option><option value="CNY">CNY ¥</option></select>
+            </div></div>
+          <div><label class="lbl">Medidas confirmadas (cm)</label><input id="m_medidas" class="inp" placeholder="60×40×50" /></div>
+        </div>
+        <div class="border-t border-slate-200 pt-3 mt-1">
+          <p class="lbl">Atributos del proveedor (Alibaba) — opcional</p>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <label class="flex items-center gap-2"><input type="checkbox" id="m_trade" class="w-4 h-4 accent-red-600" /> 🛡️ Trade Assurance</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="m_verified" class="w-4 h-4 accent-red-600" /> ✔️ Verified Supplier</label>
+          </div>
+          <div class="grid grid-cols-2 gap-3 mt-3">
+            <div><label class="lbl">Años de experiencia</label><input id="m_anios" type="number" min="0" step="1" class="inp" placeholder="8" /></div>
+            <div><label class="lbl">Calificación (0 a 5)</label><input id="m_calif" type="number" min="0" max="5" step="0.1" class="inp" placeholder="4.5" /></div>
+          </div>
+          <div class="mt-3">
+            <label class="lbl">Certificaciones</label>
+            <div class="flex gap-4 text-sm">
+              <label class="flex items-center gap-2"><input type="checkbox" id="m_ce" class="w-4 h-4 accent-red-600" /> CE</label>
+              <label class="flex items-center gap-2"><input type="checkbox" id="m_cpc" class="w-4 h-4 accent-red-600" /> CPC</label>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mt-2">
+          <button id="btnBorradorCompleto" class="btn-secondary">✅ Guardar como Borrador Completo</button>
+          <button id="btnConcretarCompra" class="btn-primary">🛒 Concretar Compra</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRM DELETE -->
+  <div id="modalEliminar" class="modal hidden" style="display:none">
+    <div class="modal-box max-w-sm">
+      <h3 class="text-lg font-bold mb-2">⚠️ ¿Eliminar / Descartar?</h3>
+      <p class="text-sm text-slate-600 mb-4">Esta acción borrará el registro <strong id="delNombre"></strong> de forma permanente. No se puede deshacer.</p>
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="cerrarModalEliminar()" class="btn-secondary">Cancelar</button>
+        <button id="btnConfirmEliminar" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-xl transition">🗑️ Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE DE TOTAL (clickable) -->
+  <div id="modalDetalle" class="modal hidden" style="display:none">
+    <div class="modal-box max-w-3xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="detTitulo" class="text-lg font-bold">Detalle</h3>
+        <button onclick="cerrarModalDetalle()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+      </div>
+      <div id="detContenido" class="overflow-x-auto"></div>
+    </div>
+  </div>
+
+  <!-- MODAL GENÉRICO (Backdrop) -->
+  <div id="modalBackdrop" class="modal hidden" style="display:none">
+    <div class="modal-box max-w-3xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="modalTitle" class="text-lg font-bold">Detalle</h3>
+        <button onclick="document.getElementById('modalBackdrop').classList.add('hidden'); document.getElementById('modalBackdrop').style.display='none';" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+      </div>
+      <div id="modalBody" class="overflow-x-auto"></div>
+    </div>
+  </div>
+
+  <!-- MODAL ANTICIPO -->
+  <div id="modalAnticipo" class="modal hidden" style="display:none">
+    <div class="modal-box max-w-sm">
+      <h3 class="text-lg font-bold mb-2">💰 Actualizar Anticipo</h3>
+      <p id="antInfo" class="text-sm text-slate-600 mb-3"></p>
+      <div id="antList" class="space-y-2 mb-3"></div>
+      <div class="grid gap-3">
+        <div><label class="lbl">Monto del anticipo</label>
+          <div class="flex gap-2"><input id="antMonto" type="number" class="inp num" min="0" step="0.01" />
+          <select id="antMoneda" class="inp !w-24"><option value="USD">USD $</option><option value="CNY">CNY ¥</option></select></div></div>
+        <div><label class="lbl">Tipo de cambio al momento <span class="text-xs text-slate-400">(se congela con el anticipo)</span></label>
+          <input id="antTC" type="number" class="inp num" step="0.0001" /></div>
+        <div><label class="lbl">Fecha del anticipo</label><input id="antFecha" type="date" class="inp" /></div>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="cerrarModalAnticipo()" class="btn-secondary">Cancelar</button>
+          <button id="btnGuardarAnticipo" class="btn-primary">💾 Guardar anticipo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=22"></script>
+</body>
+</html>
