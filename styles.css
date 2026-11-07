@@ -1,0 +1,131 @@
+/* ===== Cotizador Importaciones — estilos personalizados ===== */
+:root { --brand: #dc2626; }
+
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+
+/* Tabs */
+.tab-btn {
+  padding: .55rem 1rem; border-radius: .75rem; font-weight: 600; font-size: .875rem;
+  background: #fff; color: #475569; border: 1px solid #e2e8f0;
+  transition: all .15s ease; white-space: nowrap;
+}
+.tab-btn:hover { border-color: var(--brand); color: var(--brand); }
+.tab-active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.25rem; height: 1.25rem; padding: 0 .35rem;
+  border-radius: 999px; background: #fbbf24; color: #78350f;
+  font-size: .7rem; font-weight: 800; margin-left: .25rem;
+}
+
+/* Tarjetas y formularios */
+.card {
+  background: #fff; border-radius: 1rem; padding: 1.25rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / .07), 0 2px 4px -2px rgb(0 0 0 / .06);
+  border: 1px solid #e2e8f0;
+}
+.section-title { font-size: 1.05rem; font-weight: 700; margin-bottom: .9rem; color: #0f172a; }
+.lbl { display: block; font-size: .78rem; font-weight: 600; color: #475569; margin-bottom: .3rem; }
+.inp {
+  width: 100%; padding: .55rem .75rem; border-radius: .6rem;
+  border: 1.5px solid #cbd5e1; background: #fff; font-size: .925rem;
+  transition: border-color .15s, box-shadow .15s;
+}
+.inp:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgb(220 38 38 / .12); }
+
+.btn-primary {
+  background: linear-gradient(90deg, #dc2626, #f59e0b);
+  color: #fff; font-weight: 700; padding: .7rem 1.25rem; border-radius: .8rem;
+  transition: transform .1s, opacity .15s;
+}
+.btn-primary:hover { opacity: .92; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary {
+  background: #e2e8f0; color: #0f172a; font-weight: 600;
+  padding: .6rem 1rem; border-radius: .8rem; transition: background .15s;
+}
+.btn-secondary:hover { background: #cbd5e1; }
+
+/* Filtros */
+.filter-btn {
+  padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
+  background: #fff; color: #475569; border: 1px solid #e2e8f0; transition: all .15s;
+}
+.filter-active { background: #0f172a; color: #fff; border-color: #0f172a; }
+
+/* Tablas */
+.tbl { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.tbl th { background: #f1f5f9; color: #334155; font-weight: 700; padding: .55rem .6rem; text-align: left; white-space: nowrap; }
+.tbl td { padding: .55rem .6rem; border-top: 1px solid #e2e8f0; white-space: nowrap; }
+.tbl tr:hover td { background: #f8fafc; }
+
+/* Tarjetas de borradores */
+.item-card { transition: transform .12s, box-shadow .15s; }
+.item-card:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -8px rgb(0 0 0 / .18); }
+
+/* Chips de estado */
+.estado { font-size: .7rem; font-weight: 700; padding: .2rem .6rem; border-radius: 999px; }
+.estado-borrador_inicial { background: #fef9c3; color: #854d0e; }
+.estado-borrador_completo { background: #dbeafe; color: #1e40af; }
+.estado-comprado { background: #dcfce7; color: #166534; }
+
+/* Modales */
+.modal {
+  position: fixed; inset: 0; z-index: 50; background: rgb(15 23 42 / .55);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+  backdrop-filter: blur(3px);
+}
+.modal-box {
+  background: #fff; border-radius: 1rem; padding: 1.5rem; width: 100%;
+  max-width: 34rem; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 25px 60px -12px rgb(0 0 0 / .4);
+  animation: pop .18s ease-out;
+}
+@keyframes pop { from { transform: scale(.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* Resultados en vivo */
+.res-row { display: flex; justify-content: space-between; padding: .45rem .75rem; background: #f8fafc; border-radius: .5rem; }
+.res-row b { color: #0f172a; }
+
+/* Utilidades de animación */
+.hidden { display: none !important; }
+.fade-in { animation: fadeIn .25s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Scrollbar suave */
+::-webkit-scrollbar { height: 8px; width: 8px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+
+/* Badges de atributos del proveedor */
+.attr-badge { font-size: .68rem; font-weight: 700; padding: .15rem .5rem; border-radius: 999px; }
+
+/* Pantallas de cierre, desglose e importador */
+.screen-full { position: fixed; inset: 0; z-index: 50; background: #f1f5f9; overflow-y: auto; }
+
+/* Totales clickeables en cierre */
+.total-click {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .6rem .9rem; background: #f8fafc; border-radius: .5rem;
+  cursor: pointer; transition: background .15s; border: 1px solid transparent;
+}
+.total-click:hover { background: #e2e8f0; border-color: #cbd5e1; }
+.total-click b { color: #0f172a; }
+
+/* Tablas de detalle en modales */
+.det-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.det-table th { background: #f1f5f9; color: #334155; font-weight: 700; padding: .5rem .6rem; text-align: left; white-space: nowrap; }
+.det-table td { padding: .5rem .6rem; border-top: 1px solid #e2e8f0; }
+.det-table tr.subtotal td { background: #f1f5f9; font-weight: 700; }
+.det-table tr.total td { background: #ecfdf5; font-weight: 800; color: #047857; }
+
+/* Reportes */
+@media print {
+  header, nav, #tabs, .btn-primary, .btn-secondary, .filter-btn { display: none !important; }
+  .tab-panel { display: block !important; }
+  #reporteContainer { display: block !important; }
+  .card { box-shadow: none; border: 1px solid #e2e8f0; break-inside: avoid; }
+}
+
+/* Números alineados */
+.num { font-variant-numeric: tabular-nums; }
