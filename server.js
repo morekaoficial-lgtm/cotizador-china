@@ -52,7 +52,8 @@ app.get('/api/productos', async (_req, res) => {
   const { rows } = await pool.query(
     `SELECT id, concepto, largo_cm, ancho_cm, alto_cm, cajas, piezas_por_caja,
             precio_exw, precio_exw_moneda, peso_kg, costo_yiwu, costo_yiwu_moneda,
-            tc_ref, incluir_gestor, estado, proveedor, anticipos, consolidado_id, created_at
+            tc_ref, incluir_gestor, volumen_directo, volumen_m3, estado,
+            proveedor, anticipos, consolidado_id, created_at
      FROM productos ORDER BY created_at DESC`);
   res.json(rows.map(r => ({ ...r, proveedor: r.proveedor || {}, anticipos: r.anticipos || [] })));
 });
@@ -63,11 +64,12 @@ app.post('/api/productos', async (req, res) => {
   if (err) return res.status(400).json({ error: err });
   const { rows } = await pool.query(
     `INSERT INTO productos (id, concepto, largo_cm, ancho_cm, alto_cm, cajas, piezas_por_caja,
-       precio_exw, precio_exw_moneda, peso_kg, costo_yiwu, costo_yiwu_moneda, tc_ref, incluir_gestor, estado, proveedor, anticipos)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
-    [p.id || genId(), p.concepto, p.largo_cm, p.ancho_cm, p.alto_cm, p.cajas, p.piezas_por_caja,
+       precio_exw, precio_exw_moneda, peso_kg, costo_yiwu, costo_yiwu_moneda, tc_ref, incluir_gestor,
+       volumen_directo, volumen_m3, estado, proveedor, anticipos)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+    [p.id || genId(), p.concepto, p.largo_cm || 0, p.ancho_cm || 0, p.alto_cm || 0, p.cajas, p.piezas_por_caja,
      p.precio_exw, p.precio_exw_moneda || 'USD', p.peso_kg || 0, p.costo_yiwu, p.costo_yiwu_moneda || 'USD',
-     p.tc_ref || 7.2, !!p.incluir_gestor, p.estado || 'borrador_inicial',
+     p.tc_ref || 7.2, !!p.incluir_gestor, !!p.volumen_directo, p.volumen_m3 || null, p.estado || 'borrador_inicial',
      JSON.stringify(p.proveedor || {}), JSON.stringify(p.anticipos || [])]);
   res.status(201).json({ ...rows[0], proveedor: rows[0].proveedor || {}, anticipos: rows[0].anticipos || [] });
 });
@@ -79,11 +81,12 @@ app.put('/api/productos/:id', async (req, res) => {
   const { rowCount } = await pool.query(
     `UPDATE productos SET concepto=$2, largo_cm=$3, ancho_cm=$4, alto_cm=$5, cajas=$6, piezas_por_caja=$7,
        precio_exw=$8, precio_exw_moneda=$9, peso_kg=$10, costo_yiwu=$11, costo_yiwu_moneda=$12, tc_ref=$13,
-       incluir_gestor=$14, estado=$15, proveedor=$16, anticipos=$17, consolidado_id=$18, updated_at=NOW()
+       incluir_gestor=$14, volumen_directo=$15, volumen_m3=$16, estado=$17, proveedor=$18, anticipos=$19, consolidado_id=$20, updated_at=NOW()
      WHERE id=$1`,
-    [req.params.id, p.concepto, p.largo_cm, p.ancho_cm, p.alto_cm, p.cajas, p.piezas_por_caja,
+    [req.params.id, p.concepto, p.largo_cm || 0, p.ancho_cm || 0, p.alto_cm || 0, p.cajas, p.piezas_por_caja,
      p.precio_exw, p.precio_exw_moneda || 'USD', p.peso_kg || 0, p.costo_yiwu, p.costo_yiwu_moneda || 'USD',
-     p.tc_ref || 7.2, !!p.incluir_gestor, p.estado, JSON.stringify(p.proveedor || {}), JSON.stringify(p.anticipos || []), p.consolidado_id || null]);
+     p.tc_ref || 7.2, !!p.incluir_gestor, !!p.volumen_directo, p.volumen_m3 || null, p.estado,
+     JSON.stringify(p.proveedor || {}), JSON.stringify(p.anticipos || []), p.consolidado_id || null]);
   if (!rowCount) return res.status(404).json({ error: 'No encontrado' });
   const { rows } = await pool.query('SELECT * FROM productos WHERE id=$1', [req.params.id]);
   res.json({ ...rows[0], proveedor: rows[0].proveedor || {}, anticipos: rows[0].anticipos || [] });
@@ -199,7 +202,11 @@ app.put('/api/consolidados/:id/tarifa', async (req, res) => {
 /* ---------- Utilidades ---------- */
 function validarProducto(p) {
   if (!p.concepto) return 'concepto obligatorio';
-  if (!(p.largo_cm > 0 && p.ancho_cm > 0 && p.alto_cm > 0)) return 'dimensiones inválidas';
+  if (p.volumen_directo) {
+    if (!(parseFloat(p.volumen_m3) > 0)) return 'volumen_m3 inválido';
+  } else {
+    if (!(p.largo_cm > 0 && p.ancho_cm > 0 && p.alto_cm > 0)) return 'dimensiones inválidas';
+  }
   if (!(p.cajas > 0) || !(p.piezas_por_caja > 0)) return 'cajas / piezas inválidas';
   if (!(p.precio_exw > 0)) return 'precio EXW inválido';
   if (p.estado && !['borrador_inicial', 'borrador_completo', 'comprado', 'cerrado'].includes(p.estado)) return 'estado inválido';
