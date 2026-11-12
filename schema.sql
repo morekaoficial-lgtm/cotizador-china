@@ -16,9 +16,9 @@ ON CONFLICT (key) DO NOTHING;
 CREATE TABLE IF NOT EXISTS productos (
   id               UUID PRIMARY KEY,
   concepto         TEXT NOT NULL,
-  largo_cm         NUMERIC(10,2) NOT NULL,
-  ancho_cm         NUMERIC(10,2) NOT NULL,
-  alto_cm          NUMERIC(10,2) NOT NULL,
+  largo_cm         NUMERIC(10,2) NOT NULL DEFAULT 0,
+  ancho_cm         NUMERIC(10,2) NOT NULL DEFAULT 0,
+  alto_cm          NUMERIC(10,2) NOT NULL DEFAULT 0,
   cajas            INTEGER NOT NULL,
   piezas_por_caja  INTEGER NOT NULL,
   precio_exw       NUMERIC(12,4) NOT NULL,
@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS productos (
   costo_yiwu_moneda VARCHAR(3) NOT NULL DEFAULT 'USD',
   tc_ref           NUMERIC(10,4) NOT NULL DEFAULT 7.2,
   incluir_gestor   BOOLEAN NOT NULL DEFAULT FALSE,
+  volumen_directo  BOOLEAN NOT NULL DEFAULT FALSE,
+  volumen_m3       NUMERIC(12,4) DEFAULT NULL,
   estado           VARCHAR(20) NOT NULL DEFAULT 'borrador_inicial'
                    CHECK (estado IN ('borrador_inicial','borrador_completo','comprado','cerrado')),
   proveedor        JSONB NOT NULL DEFAULT '{}',
