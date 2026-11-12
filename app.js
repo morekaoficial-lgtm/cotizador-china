@@ -160,7 +160,12 @@ function calcular(p, tarifa, modo, tcRef) {
   tcRef = tcRef || 7.2;
 
   const totalUnidades = (p.cajas || 0) * (p.piezas_por_caja || 0);
-  const volumen = ((p.largo_cm || 0) * (p.ancho_cm || 0) * (p.alto_cm || 0)) / 1e6 * (p.cajas || 0);
+  let volumen;
+  if (p.volumen_directo && num(p.volumen_m3) > 0) {
+    volumen = num(p.volumen_m3);
+  } else {
+    volumen = ((p.largo_cm || 0) * (p.ancho_cm || 0) * (p.alto_cm || 0)) / 1e6 * (p.cajas || 0);
+  }
   const volCob = modo === 'completo' ? Math.ceil(volumen - 1e-9) : volumen;
 
   const importTotal = volCob * (tarifa || state.tarifa);
@@ -227,6 +232,7 @@ function calcularDinero(p, tarifa, modo, tcRef) {
 }
 
 function readForm() {
+  const volumenDirecto = _('f_volumen_directo').checked;
   return {
     concepto: _('f_concepto').value.trim(),
     proveedor: _('f_proveedor').value.trim(),
@@ -238,12 +244,18 @@ function readForm() {
     costo_yiwu: num(_('f_yiwu').value), costo_yiwu_moneda: _('f_yiwu_moneda').value,
     tc_ref: num(_('f_tc').value) || 7.2,
     incluir_gestor: _('f_gestor').checked,
+    volumen_directo: volumenDirecto,
+    volumen_m3: volumenDirecto ? num(_('f_volumen_m3').value) : null,
   };
 }
 
 function validarForm(f) {
   if (!f.concepto) return 'El concepto / descripción es obligatorio.';
-  if (!(f.largo_cm > 0) || !(f.ancho_cm > 0) || !(f.alto_cm > 0)) return 'Las dimensiones (L\u00D7A\u00D7Al) deben ser mayores a 0.';
+  if (f.volumen_directo) {
+    if (!(f.volumen_m3 > 0)) return 'El volumen en m³ debe ser mayor a 0.';
+  } else {
+    if (!(f.largo_cm > 0) || !(f.ancho_cm > 0) || !(f.alto_cm > 0)) return 'Las dimensiones (L\u00D7A\u00D7Al) deben ser mayores a 0.';
+  }
   if (!(f.cajas > 0)) return 'La cantidad de cajas debe ser mayor a 0.';
   if (!(f.piezas_por_caja > 0)) return 'Las piezas por caja deben ser mayor a 0.';
   if (!(f.precio_exw > 0)) return 'El precio de fábrica (EXW) debe ser mayor a 0.';
@@ -460,7 +472,7 @@ function cardProducto(p, tipo) {
         provBadge + badgeGestor +
       '</div>' +
       '<h4 class="font-semibold text-lg mb-1">' + esc(p.concepto) + '</h4>' +
-      '<p class="text-sm text-slate-500 mb-3">' + (p.cajas || 0) + ' cajas \u00D7 ' + (p.piezas_por_caja || 0) + ' pzas = ' + r.totalUnidades.toLocaleString('es-MX') + ' unidades \u00B7 ' + r.volCob.toFixed(4) + ' m\u00B3</p>' +
+      '<p class="text-sm text-slate-500 mb-3">' + (p.cajas || 0) + ' cajas \u00D7 ' + (p.piezas_por_caja || 0) + ' pzas = ' + r.totalUnidades.toLocaleString('es-MX') + ' unidades \u00B7 ' + r.volCob.toFixed(4) + ' m\u00B3' + (p.volumen_directo ? ' <span class="badge-purple">Volumen directo</span>' : '') + '</p>' +
       '<div class="grid md:grid-cols-2 gap-4">' +
         '<div class="bg-slate-50 p-3 rounded-lg text-sm space-y-1">' +
           '<h5 class="font-semibold text-xs text-slate-500 uppercase tracking-wider mb-2">Desglose unitario</h5>' +
@@ -1161,6 +1173,9 @@ function editarProducto(id) {
   _('f_precio_moneda').value = p.precio_exw_moneda || 'USD'; _('f_peso').value = p.peso_kg || '';
   _('f_yiwu').value = p.costo_yiwu || ''; _('f_yiwu_moneda').value = p.costo_yiwu_moneda || 'USD';
   _('f_tc').value = (p.tc_ref || 7.2).toFixed(4); _('f_gestor').checked = !!p.incluir_gestor;
+  _('f_volumen_directo').checked = !!p.volumen_directo;
+  _('f_volumen_m3').value = p.volumen_m3 || '';
+  toggleVolumenDirecto();
   state.modalId = id;
   renderLive();
   showTab('tab-cotizador');
@@ -1190,7 +1205,17 @@ function limpiarForm() {
   _('f_precio_moneda').value = 'USD'; _('f_peso').value = '';
   _('f_yiwu').value = ''; _('f_yiwu_moneda').value = 'USD';
   _('f_tc').value = '7.20'; _('f_gestor').checked = false;
+  _('f_volumen_directo').checked = false;
+  _('f_volumen_m3').value = '';
+  toggleVolumenDirecto();
   state.modalId = null;
+}
+
+function toggleVolumenDirecto() {
+  const activo = _('f_volumen_directo').checked;
+  _('wrapDimensiones').classList.toggle('hidden', activo);
+  _('wrapVolumen').classList.toggle('hidden', !activo);
+  renderLive();
 }
 
 function nuevoProducto() { state.modalId = null; limpiarForm(); renderLive(); showTab('tab-cotizador'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -1490,10 +1515,13 @@ function bindEvents() {
     if (el) el.addEventListener('input', actualizarResumenPago);
   });
 
-  ['f_largo','f_ancho','f_alto','f_cajas','f_piezas','f_precio','f_precio_moneda','f_yiwu','f_yiwu_moneda','f_tc','f_gestor'].forEach(id => {
+  ['f_largo','f_ancho','f_alto','f_cajas','f_piezas','f_precio','f_precio_moneda','f_yiwu','f_yiwu_moneda','f_tc','f_gestor','f_volumen_m3'].forEach(id => {
     const el = _(id);
     if (el) el.addEventListener('input', renderLive);
   });
+
+  const chkVol = _('f_volumen_directo');
+  if (chkVol) chkVol.addEventListener('change', toggleVolumenDirecto);
 
   document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', e => showTab(e.currentTarget.dataset.tab)));
   document.querySelectorAll('.filter-btn').forEach(b => b.addEventListener('click', e => {
