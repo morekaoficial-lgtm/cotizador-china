@@ -60,10 +60,22 @@
                 <input id="f_ciudad" class="inp" placeholder="Yiwu, Guangzhou..." />
               </div>
             </div>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+              <input type="checkbox" id="f_volumen_directo" class="w-4 h-4 accent-red-600" />
+              <label for="f_volumen_directo" class="text-sm text-slate-700 cursor-pointer">
+                <span class="font-semibold">El proveedor me dio el volumen en m³</span>
+                <span class="text-xs text-slate-500 block">Activa esta opción si ya conoces el volumen total del embarque y no necesitas calcularlo desde las medidas.</span>
+              </label>
+            </div>
+            <div id="wrapDimensiones" class="grid grid-cols-3 gap-3">
               <div><label class="lbl">Largo (cm) *</label><input id="f_largo" type="number" min="0" step="0.1" class="inp" placeholder="60" /></div>
               <div><label class="lbl">Ancho (cm) *</label><input id="f_ancho" type="number" min="0" step="0.1" class="inp" placeholder="40" /></div>
               <div><label class="lbl">Alto (cm) *</label><input id="f_alto" type="number" min="0" step="0.1" class="inp" placeholder="50" /></div>
+            </div>
+            <div id="wrapVolumen" class="hidden">
+              <label class="lbl">Volumen total (m³) *</label>
+              <input id="f_volumen_m3" type="number" min="0" step="0.0001" class="inp" placeholder="1.2345" />
+              <p class="text-xs text-slate-500 mt-1">Volumen total que te indicó el proveedor (incluye todas las cajas).</p>
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div><label class="lbl">Cajas / Cartones *</label><input id="f_cajas" type="number" min="0" class="inp" placeholder="100" /></div>
@@ -460,6 +472,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=22"></script>
+  <script src="app.js?v=23"></script>
 </body>
 </html>
