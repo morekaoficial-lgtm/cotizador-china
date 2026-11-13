@@ -105,11 +105,19 @@
               </div>
               <p class="text-xs text-slate-500 mt-1">Flete interno China (total del embarque, no por caja).</p>
             </div>
-            <div>
-              <label class="lbl">Tipo de cambio de referencia (¥/US$)</label>
-              <input id="f_tc" type="number" min="0" step="0.0001" class="inp" value="7.20" />
-              <p class="text-xs text-slate-500 mt-1">Solo referencia. Los anticipos se congelan al TC del momento; los saldos se actualizan al TC de pago.</p>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="lbl">Tipo de cambio (¥/US$)</label>
+                <input id="f_tc" type="number" min="0" step="0.0001" class="inp" value="7.20" />
+                <p class="text-xs text-slate-500 mt-1">CNY → USD</p>
+              </div>
+              <div>
+                <label class="lbl">Tipo de cambio (US$/MX$)</label>
+                <input id="f_tc_mxn" type="number" min="0" step="0.01" class="inp" value="18.20" />
+                <p class="text-xs text-slate-500 mt-1">USD → MXN</p>
+              </div>
             </div>
+            <p class="text-xs text-slate-500 -mt-2 mb-2">Solo referencia. Los anticipos se congelan al TC del momento; los saldos se actualizan al TC de pago.</p>
             <div class="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
               <input type="checkbox" id="f_gestor" class="w-4 h-4 accent-red-600" />
               <label for="f_gestor" class="text-sm text-slate-700 cursor-pointer">
@@ -472,6 +480,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>
