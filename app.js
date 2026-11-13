@@ -417,95 +417,145 @@ function cardProducto(p, tipo) {
     const r = calcularDinero(p, state.tarifa, state.modoCobro, tcRef);
     const dataId = esc(p.id);
 
-    const row3 = (label, usd) => '<div class="res-row"><span>' + label + '</span><div class="trio-moneda">' + fmt3m4(usd, tcRef, tcMXN) + '</div></div>';
-    const row3b = (label, usd) => '<div class="res-row"><span>' + label + '</span><b>' + fmt3m4(usd, tcRef, tcMXN) + '</b></div>';
-    const sep = () => '<div style="border-top:1px dashed #cbd5e1;margin:4px 0"></div>';
-    const spc = () => '<div style="height:4px"></div>';
+    // Helper: fila simple con label a la izquierda y valor USD a la derecha
+    const row = (label, usd, bold) => '<div class="flex justify-between items-center py-1.5 px-2 ' + (bold ? 'bg-slate-100 rounded font-semibold' : '') + '"><span class="text-slate-600 text-sm">' + label + '</span><span class="text-right text-sm ' + (bold ? 'text-slate-900' : 'text-slate-700') + '">' + money4(usd) + ' <span class="text-xs text-slate-400">USD</span></span></div>';
+    const sep = () => '<div class="border-t border-dashed border-slate-300 my-2"></div>';
 
-    // Desglose unitario
-    let unitHtml = '<h5 class="font-semibold text-xs text-slate-500 uppercase tracking-wider mb-2">Desglose unitario</h5>' +
-      row3('EXW /u', r.exwUnit) +
-      (r.gestorUnit > 0.0001 ? row3('Gestor local (5%) /u', r.gestorUnit) : '') +
-      row3('Flete Yiwu /u', r.yiwuUnit) +
+    // Helper para mostrar un valor en USD con referencia MXN debajo (gris pequeño)
+    const rowMX = (label, usd) => '<div class="flex justify-between items-start py-1.5 px-2"><span class="text-slate-600 text-sm">' + label + '</span><div class="text-right"><div class="text-sm font-medium text-slate-800">' + money4(usd) + ' USD</div><div class="text-xs text-slate-400">' + money(toMXN(usd, tcMXN)) + ' MXN</div></div></div>';
+    const rowMXbold = (label, usd) => '<div class="flex justify-between items-start py-2 px-2 bg-slate-100 rounded font-semibold"><span class="text-slate-800 text-sm">' + label + '</span><div class="text-right"><div class="text-sm text-slate-900">' + money4(usd) + ' USD</div><div class="text-xs text-slate-500">' + money(toMXN(usd, tcMXN)) + ' MXN</div></div></div>';
+
+    // ---- Desglose Unitario (columna izquierda) ----
+    let unitHtml = '<div class="space-y-0.5">' +
+      row('EXW /u', r.exwUnit) +
+      (r.gestorUnit > 0.0001 ? row('Gestor local (5%) /u', r.gestorUnit) : '') +
+      row('Flete Yiwu /u', r.yiwuUnit) +
       sep() +
-      row3b('= Compra sin importación /u', r.compraSinImportUnit) +
-      spc() +
-      row3('Importación m³ /u', r.importUnit);
+      row('Compra sin importación /u', r.compraSinImportUnit, true) +
+      row('Importación m³ /u', r.importUnit) +
+      (r.ant.length > 0 ? row('Anticipos /u', r.totalAntUSD / r.totalUnidades) : '') +
+      sep() +
+      row('Saldo al proveedor /u', r.saldoProveedorUnit, true) +
+      row('Envío de dinero (3%) /u', r.envioDineroUnit) +
+      sep() +
+      '<div class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 pt-1 pb-2">Final MX /u</div>' +
+      row('EXW', r.exwUnit) +
+      row('+ Gestor', r.gestorUnit) +
+      row('+ Flete Yiwu', r.yiwuUnit) +
+      row('+ Importación', r.importUnit) +
+      row('+ Envío dinero', r.envioDineroUnit) +
+      '<div class="flex justify-between items-center py-2 px-2 bg-emerald-50 rounded font-bold mt-1"><span class="text-emerald-800 text-sm">= Final MX /u</span><span class="text-emerald-700 text-sm">' + money4(r.finalMXUnit) + ' USD</span></div>' +
+      '</div>';
+
+    // ---- Desglose Total (columna derecha) ----
+    let totHtml = '<div class="space-y-0.5">' +
+      rowMX('EXW Total', r.exwTotalUSD) +
+      (r.gestorUSD > 0.0001 ? rowMX('Gestor local (5%) Total', r.gestorUSD) : '') +
+      rowMX('Flete almacén Yiwu Total', r.ywUSD) +
+      sep() +
+      rowMXbold('Compra sin importación Total', r.compraSinImportTotal);
 
     if (r.ant.length > 0) {
-      unitHtml += spc() + row3('Anticipos /u', r.totalAntUSD / r.totalUnidades);
-    }
-
-    unitHtml += spc() + row3b('Saldo al proveedor /u', r.saldoProveedorUnit) +
-      row3('Envío de dinero (3%) /u', r.envioDineroUnit) +
-      spc() + sep() +
-      '<div class="res-row"><span><b>A) Final MX /u</b></span><span></span></div>' +
-      row3('  EXW /u', r.exwUnit) +
-      row3('  + Gestor /u', r.gestorUnit) +
-      row3('  + Flete Yiwu /u', r.yiwuUnit) +
-      row3('  + Importación /u', r.importUnit) +
-      row3('  + Envío dinero /u', r.envioDineroUnit) +
-      '<div class="res-row"><span><b>  = Final MX /u</b></span><div class="trio-moneda"><span class="mono-usd"><b>' + money4(r.finalMXUnit) + ' USD</b></span><span class="mono-cny">' + money4(toCNY(r.finalMXUnit, tcRef)) + ' CNY</span><span class="mono-mxn">' + money4(toMXN(r.finalMXUnit, tcMXN)) + ' MXN</span></div></div>';
-
-    // Desglose total
-    let totHtml = '<h5 class="font-semibold text-xs text-slate-500 uppercase tracking-wider mb-2">Desglose total del pedido</h5>' +
-      row3('EXW Total', r.exwTotalUSD) +
-      (r.gestorUSD > 0.0001 ? row3('Gestor local (5%) Total', r.gestorUSD) : '') +
-      row3('Flete almacén Yiwu Total', r.ywUSD) +
-      sep() +
-      row3b('= Compra sin importación Total', r.compraSinImportTotal);
-
-    if (r.ant.length > 0) {
-      totHtml += spc() + sep() + '<div class="res-row"><span><b>ANTICIPOS</b></span><span></span></div>';
+      totHtml += sep() + '<div class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 pt-1 pb-1">Anticipos</div>';
       r.ant.forEach(a => {
         const aUSD = toUSD(safeNum(a.monto), a.moneda || 'USD', a.tc || tcRef);
-        totHtml += '<div class="res-row"><span>• ' + esc(a.fecha || '') + ' @ TC ' + (safeNum(a.tc || tcRef)).toFixed(4) + '</span><div class="trio-moneda">' + fmt3m4(aUSD, tcRef, tcMXN) + '</div></div>';
+        totHtml += '<div class="flex justify-between items-start py-1 px-2"><span class="text-slate-500 text-xs">• ' + esc(a.fecha || '') + ' @ ' + (safeNum(a.tc || tcRef)).toFixed(2) + '</span><div class="text-right"><div class="text-xs text-slate-700">' + money4(aUSD) + ' USD</div></div></div>';
       });
-      totHtml += '<div class="res-row"><span><b>Total anticipos</b></span><div class="trio-moneda">' + fmt3m4(r.totalAntUSD, tcRef, tcMXN) + '</div></div>';
+      totHtml += '<div class="flex justify-between items-center py-1.5 px-2 bg-amber-50 rounded font-semibold mt-1"><span class="text-amber-800 text-xs">Total anticipos</span><span class="text-amber-700 text-xs">' + money4(r.totalAntUSD) + ' USD</span></div>';
     }
 
-    totHtml += spc() + sep() + '<div class="res-row"><span><b>SALDO AL PROVEEDOR</b></span><span></span></div>' +
-      row3b('Saldo al proveedor', r.saldoProveedorUSD) +
-      spc() + sep() + '<div class="res-row"><span><b>ENVÍO DE DINERO (3%)</b></span><span></span></div>' +
-      row3('Comisión envío de dinero 3%', r.envioDineroUSD) +
-      spc() + sep() + '<div class="res-row"><span><b>IMPORTACIÓN M³</b></span><span></span></div>' +
-      '<div class="res-row"><span>Importación m³ (' + r.volCob.toFixed(4) + ' m³)</span><div class="trio-moneda">' + fmt3m4(r.importTotal, tcRef, tcMXN) + '</div></div>' +
-      spc() + sep() + '<div class="res-row"><span><b>B) Final MX /Total</b></span><span></span></div>' +
-      row3('  EXW Total', r.exwTotalUSD) +
-      row3('  + Gestor Total', r.gestorUSD) +
-      row3('  + Flete Yiwu Total', r.ywUSD) +
-      row3('  + Importación Total', r.importTotal) +
-      row3('  + Envío dinero Total', r.envioDineroUSD) +
-      '<div class="res-row"><span><b>  = Final MX /Total</b></span><div class="trio-moneda"><span class="mono-usd"><b>' + money4(r.finalMXTotal) + ' USD</b></span><span class="mono-cny">' + money4(toCNY(r.finalMXTotal, tcRef)) + ' CNY</span><span class="mono-mxn">' + money4(toMXN(r.finalMXTotal, tcMXN)) + ' MXN</span></div></div>' +
-      spc() + '<div class="res-row"><span><b>C) Pago al Importador</b></span><span></span></div>' +
-      row3('  Final MX /Total', r.finalMXTotal) +
-      row3('  − Anticipos', r.totalAntUSD) +
-      '<div class="res-row"><span><b>  = Pago al Importador</b></span><div class="trio-moneda"><span class="mono-usd"><b>' + money4(r.pagoImportador) + ' USD</b></span><span class="mono-cny">' + money4(toCNY(r.pagoImportador, tcRef)) + ' CNY</span><span class="mono-mxn">' + money4(toMXN(r.pagoImportador, tcMXN)) + ' MXN</span></div></div>';
+    totHtml += sep() +
+      '<div class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 pt-1 pb-1">Saldo al proveedor</div>' +
+      rowMXbold('Saldo al proveedor', r.saldoProveedorUSD) +
+      sep() +
+      '<div class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 pt-1 pb-1">Envío de dinero (3%)</div>' +
+      rowMX('Comisión envío de dinero', r.envioDineroUSD) +
+      sep() +
+      '<div class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 pt-1 pb-1">Importación m³</div>' +
+      '<div class="flex justify-between items-center py-1.5 px-2"><span class="text-slate-600 text-sm">Volumen (' + r.volCob.toFixed(4) + ' m³)</span><span class="text-sm text-slate-700">' + money4(r.importTotal) + ' USD</span></div>' +
+      sep() +
+      '<div class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 pt-1 pb-1">Final MX /Total</div>' +
+      rowMX('EXW', r.exwTotalUSD) +
+      rowMX('+ Gestor', r.gestorUSD) +
+      rowMX('+ Flete Yiwu', r.ywUSD) +
+      rowMX('+ Importación', r.importTotal) +
+      rowMX('+ Envío dinero', r.envioDineroUSD) +
+      '<div class="flex justify-between items-center py-2 px-2 bg-emerald-50 rounded font-bold mt-1"><span class="text-emerald-800 text-sm">= Final MX /Total</span><span class="text-emerald-700 text-sm">' + money4(r.finalMXTotal) + ' USD</span></div>' +
+      sep() +
+      '<div class="text-xs font-bold text-slate-500 uppercase tracking-wider px-2 pt-1 pb-1">Pago al Importador</div>' +
+      rowMX('Final MX /Total', r.finalMXTotal) +
+      rowMX('− Anticipos', r.totalAntUSD) +
+      '<div class="flex justify-between items-center py-2 px-2 bg-blue-50 rounded font-bold mt-1"><span class="text-blue-800 text-sm">= Pago al Importador</span><span class="text-blue-700 text-sm">' + money4(r.pagoImportador) + ' USD</span></div>' +
+      '</div>';
+
+    // ---- Tabla resumen de 3 monedas (al final de la tarjeta) ----
+    const resumen3M = '<div class="mt-4 bg-slate-50 rounded-xl p-4 border border-slate-200">' +
+      '<h5 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 text-center">Resumen en monedas</h5>' +
+      '<div class="grid grid-cols-3 gap-3 text-center">' +
+        '<div class="bg-white rounded-lg p-3 shadow-sm">' +
+          '<div class="text-xs text-slate-400 mb-1">USD</div>' +
+          '<div class="text-sm font-bold text-slate-800">' + money4(r.finalMXTotal) + '</div>' +
+          '<div class="text-xs text-slate-400 mt-1">Final MX</div>' +
+        '</div>' +
+        '<div class="bg-white rounded-lg p-3 shadow-sm">' +
+          '<div class="text-xs text-amber-600 mb-1">CNY</div>' +
+          '<div class="text-sm font-bold text-amber-700">' + money4(toCNY(r.finalMXTotal, tcRef)) + '</div>' +
+          '<div class="text-xs text-amber-500 mt-1">Final MX</div>' +
+        '</div>' +
+        '<div class="bg-white rounded-lg p-3 shadow-sm">' +
+          '<div class="text-xs text-emerald-600 mb-1">MXN</div>' +
+          '<div class="text-sm font-bold text-emerald-700">' + money4(toMXN(r.finalMXTotal, tcMXN)) + '</div>' +
+          '<div class="text-xs text-emerald-500 mt-1">Final MX</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="grid grid-cols-3 gap-3 text-center mt-3">' +
+        '<div class="bg-white rounded-lg p-3 shadow-sm">' +
+          '<div class="text-sm font-bold text-slate-800">' + money4(r.pagoImportador) + '</div>' +
+          '<div class="text-xs text-slate-400 mt-1">Pago Import.</div>' +
+        '</div>' +
+        '<div class="bg-white rounded-lg p-3 shadow-sm">' +
+          '<div class="text-sm font-bold text-amber-700">' + money4(toCNY(r.pagoImportador, tcRef)) + '</div>' +
+          '<div class="text-xs text-amber-500 mt-1">Pago Import.</div>' +
+        '</div>' +
+        '<div class="bg-white rounded-lg p-3 shadow-sm">' +
+          '<div class="text-sm font-bold text-emerald-700">' + money4(toMXN(r.pagoImportador, tcMXN)) + '</div>' +
+          '<div class="text-xs text-emerald-500 mt-1">Pago Import.</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="text-center mt-2 text-xs text-slate-400">TC ref: ¥' + tcRef.toFixed(2) + '/US$  ·  US$' + tcMXN.toFixed(2) + '/MX$</div>' +
+    '</div>';
 
     const badgeGestor = p.incluir_gestor ? '<span class="badge-purple">📜 Gestor local 5%</span>' : '';
     const provBadge = p.proveedor ? '<span class="badge-teal">🏭 ' + esc(p.proveedor) + '</span>' : '';
 
-    // Botones con data-action + data-id (más robusto que onclick inline)
-    let btns = '<button data-action="anticipo" data-id="' + dataId + '" class="btn-ghost text-xs px-3 py-1.5">💰 Actualizar anticipo</button>' +
-      '<button data-action="editar" data-id="' + dataId + '" class="btn-ghost text-xs px-3 py-1.5">Editar</button>' +
-      '<button data-action="eliminar" data-id="' + dataId + '" class="btn-danger text-xs px-3 py-1.5">Eliminar</button>';
+    // Botones
+    let btns = '<button data-action="anticipo" data-id="' + dataId + '" class="btn-ghost text-sm px-4 py-2">💰 Actualizar anticipo</button>' +
+      '<button data-action="editar" data-id="' + dataId + '" class="btn-ghost text-sm px-4 py-2">✏️ Editar</button>' +
+      '<button data-action="eliminar" data-id="' + dataId + '" class="btn-danger text-sm px-4 py-2">🗑️ Eliminar</button>';
     if (tipo === 'borrador') {
-      if (p.estado === 'borrador_inicial') btns += '<button data-action="completo" data-id="' + dataId + '" class="btn-secondary text-xs px-3 py-1.5">Marcar completo</button>';
-      if (p.estado === 'borrador_completo') btns += '<button data-action="comprado" data-id="' + dataId + '" class="btn-primary text-xs px-3 py-1.5">🛒 Marcar comprado</button>';
+      if (p.estado === 'borrador_inicial') btns += '<button data-action="completo" data-id="' + dataId + '" class="btn-secondary text-sm px-4 py-2">✓ Marcar completo</button>';
+      if (p.estado === 'borrador_completo') btns += '<button data-action="comprado" data-id="' + dataId + '" class="btn-primary text-sm px-4 py-2">🛒 Marcar comprado</button>';
     }
 
     return '<div class="card">' +
-      '<div class="flex flex-wrap gap-2 mb-2">' +
+      '<div class="flex flex-wrap gap-2 mb-3">' +
         '<span class="badge-blue">' + (ESTADO_LABEL[p.estado] || p.estado) + '</span>' +
         provBadge + badgeGestor +
       '</div>' +
-      '<h4 class="font-semibold text-lg mb-1">' + esc(p.concepto) + '</h4>' +
-      '<p class="text-sm text-slate-500 mb-3">' + (p.cajas || 0) + ' cajas × ' + (p.piezas_por_caja || 0) + ' pzas = ' + r.totalUnidades.toLocaleString('es-MX') + ' unidades · ' + r.volCob.toFixed(4) + ' m³' + (p.volumen_directo ? ' <span class="badge-purple">Volumen directo</span>' : '') + '</p>' +
-      '<div class="grid md:grid-cols-2 gap-4">' +
-        '<div class="bg-slate-50 p-3 rounded-lg text-sm space-y-1">' + unitHtml + '</div>' +
-        '<div class="bg-slate-50 p-3 rounded-lg text-sm space-y-1">' + totHtml + '</div>' +
+      '<h4 class="font-bold text-xl mb-1 text-slate-800">' + esc(p.concepto) + '</h4>' +
+      '<p class="text-sm text-slate-500 mb-4">' + (p.cajas || 0) + ' cajas × ' + (p.piezas_por_caja || 0) + ' pzas = <b>' + r.totalUnidades.toLocaleString('es-MX') + '</b> unidades · <b>' + r.volCob.toFixed(4) + ' m³</b>' + (p.volumen_directo ? ' <span class="badge-purple text-xs">Volumen directo</span>' : '') + '</p>' +
+      '<div class="grid md:grid-cols-2 gap-5">' +
+        '<div class="bg-white border border-slate-200 rounded-xl p-4">' +
+          '<h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Desglose unitario</h5>' +
+          unitHtml +
+        '</div>' +
+        '<div class="bg-white border border-slate-200 rounded-xl p-4">' +
+          '<h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Desglose total del pedido</h5>' +
+          totHtml +
+        '</div>' +
       '</div>' +
-      '<div class="mt-3 flex gap-2 flex-wrap">' + btns + '</div>' +
+      resumen3M +
+      '<div class="mt-4 flex gap-2 flex-wrap">' + btns + '</div>' +
     '</div>';
   } catch (e) {
     console.error('cardProducto error:', e, p);
