@@ -48,7 +48,20 @@ function toUSD(n, moneda, tc) {
   if (moneda === 'CNY') return n / (tc || 7.2);
   return n;
 }
+function toCNY(usd, tc) { return usd * (tc || 7.2); }
+function toMXN(usd, tcMXN) { return usd * (tcMXN || 18.2); }
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+/* Formato 3 monedas: muestra USD + CNY + MXN */
+function fmt3m(usd, tcRef, tcMXN, digits) {
+  const d = digits === undefined ? 2 : digits;
+  const cny = toCNY(usd, tcRef);
+  const mxn = toMXN(usd, tcMXN);
+  return '<span class="mono-usd">' + money(usd, d) + ' USD</span>' +
+    '<span class="mono-cny">' + money(cny, d) + ' CNY</span>' +
+    '<span class="mono-mxn">' + money(mxn, d) + ' MXN</span>';
+}
+function fmt3m4(usd, tcRef, tcMXN) { return fmt3m(usd, tcRef, tcMXN, 4); }
 
 /* ---------- Capa de datos ---------- */
 async function api(path, opts = {}) {
@@ -400,104 +413,86 @@ const ESTADO_LABEL = { borrador_inicial: '\uD83D\uDCDD Borrador Inicial', borrad
 function cardProducto(p, tipo) {
   try {
     const tcRef = p.tc_ref || 7.2;
+    const tcMXN = p.tc_usd_mxn || state.tcUSDMXN || 18.2;
     const r = calcularDinero(p, state.tarifa, state.modoCobro, tcRef);
+    const dataId = esc(p.id);
+
+    const row3 = (label, usd) => '<div class="res-row"><span>' + label + '</span><div class="trio-moneda">' + fmt3m4(usd, tcRef, tcMXN) + '</div></div>';
+    const row3b = (label, usd) => '<div class="res-row"><span>' + label + '</span><b>' + fmt3m4(usd, tcRef, tcMXN) + '</b></div>';
+    const sep = () => '<div style="border-top:1px dashed #cbd5e1;margin:4px 0"></div>';
+    const spc = () => '<div style="height:4px"></div>';
 
     // Desglose unitario
-    const unitRows = [
-      ['EXW /u', money4(r.exwUnit)],
-      ['Gestor local (5%) /u', r.gestorUnit > 0.0001 ? money4(r.gestorUnit) : '$0.0000'],
-      ['Flete Yiwu /u', money4(r.yiwuUnit)],
-      ['\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', ''],
-      ['= Compra sin importación /u', '<b>' + money4(r.compraSinImportUnit) + '</b>'],
-      ['', ''],
-      ['Importación m\u00B3 /u', money4(r.importUnit)],
-    ];
+    let unitHtml = '<h5 class="font-semibold text-xs text-slate-500 uppercase tracking-wider mb-2">Desglose unitario</h5>' +
+      row3('EXW /u', r.exwUnit) +
+      (r.gestorUnit > 0.0001 ? row3('Gestor local (5%) /u', r.gestorUnit) : '') +
+      row3('Flete Yiwu /u', r.yiwuUnit) +
+      sep() +
+      row3b('= Compra sin importación /u', r.compraSinImportUnit) +
+      spc() +
+      row3('Importación m³ /u', r.importUnit);
 
     if (r.ant.length > 0) {
-      unitRows.push(['', '']);
-      unitRows.push(['Anticipos /u', money4(r.totalAntUSD / r.totalUnidades)]);
+      unitHtml += spc() + row3('Anticipos /u', r.totalAntUSD / r.totalUnidades);
     }
 
-    unitRows.push(['', '']);
-    unitRows.push(['Saldo al proveedor /u', money4(r.saldoProveedorUnit)]);
-    unitRows.push(['Envío de dinero (3%) /u', money4(r.envioDineroUnit)]);
-    unitRows.push(['', '']);
-    unitRows.push(['\u2500\u2500 TOTALES \u2500\u2500', '']);
-    unitRows.push(['A) Final MX /u', '']);
-    unitRows.push(['  EXW /u', money4(r.exwUnit)]);
-    unitRows.push(['  + Gestor /u', money4(r.gestorUnit)]);
-    unitRows.push(['  + Flete Yiwu /u', money4(r.yiwuUnit)]);
-    unitRows.push(['  + Importación /u', money4(r.importUnit)]);
-    unitRows.push(['  + Envío dinero /u', money4(r.envioDineroUnit)]);
-    unitRows.push(['  = Final MX /u', '<b class="text-emerald-700">' + money4(r.finalMXUnit) + '</b>']);
+    unitHtml += spc() + row3b('Saldo al proveedor /u', r.saldoProveedorUnit) +
+      row3('Envío de dinero (3%) /u', r.envioDineroUnit) +
+      spc() + sep() +
+      '<div class="res-row"><span><b>A) Final MX /u</b></span><span></span></div>' +
+      row3('  EXW /u', r.exwUnit) +
+      row3('  + Gestor /u', r.gestorUnit) +
+      row3('  + Flete Yiwu /u', r.yiwuUnit) +
+      row3('  + Importación /u', r.importUnit) +
+      row3('  + Envío dinero /u', r.envioDineroUnit) +
+      '<div class="res-row"><span><b>  = Final MX /u</b></span><div class="trio-moneda"><span class="mono-usd"><b>' + money4(r.finalMXUnit) + ' USD</b></span><span class="mono-cny">' + money4(toCNY(r.finalMXUnit, tcRef)) + ' CNY</span><span class="mono-mxn">' + money4(toMXN(r.finalMXUnit, tcMXN)) + ' MXN</span></div></div>';
 
     // Desglose total
-    const totRows = [
-      ['EXW Total', money4(r.exwTotalNeg) + ' ' + (p.precio_exw_moneda || 'USD') + ' <span class="text-xs text-slate-400">(' + money4(r.exwTotalUSD) + ' USD)</span>'],
-      ['Gestor local (5%) Total', r.gestorUSD > 0.0001 ? money4(r.gestorUSD) : '$0.0000'],
-      ['Flete almacén Yiwu Total', money4(p.costo_yiwu || 0) + ' ' + (p.costo_yiwu_moneda || 'USD') + ' <span class="text-xs text-slate-400">(' + money4(r.ywUSD) + ' USD)</span>'],
-      ['\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', ''],
-      ['= Compra sin importación Total', '<b>' + money4(r.compraSinImportTotal) + '</b>'],
-    ];
+    let totHtml = '<h5 class="font-semibold text-xs text-slate-500 uppercase tracking-wider mb-2">Desglose total del pedido</h5>' +
+      row3('EXW Total', r.exwTotalUSD) +
+      (r.gestorUSD > 0.0001 ? row3('Gestor local (5%) Total', r.gestorUSD) : '') +
+      row3('Flete almacén Yiwu Total', r.ywUSD) +
+      sep() +
+      row3b('= Compra sin importación Total', r.compraSinImportTotal);
 
     if (r.ant.length > 0) {
-      totRows.push(['', '']);
-      totRows.push(['\u2500\u2500 ANTICIPOS \u2500\u2500', '']);
+      totHtml += spc() + sep() + '<div class="res-row"><span><b>ANTICIPOS</b></span><span></span></div>';
       r.ant.forEach(a => {
-        totRows.push(['\u2022 ' + (a.fecha || '') + ' @ TC ' + (a.tc || tcRef).toFixed(4), money4(a.monto) + ' ' + (a.moneda || 'USD')]);
+        const aUSD = toUSD(safeNum(a.monto), a.moneda || 'USD', a.tc || tcRef);
+        totHtml += '<div class="res-row"><span>• ' + esc(a.fecha || '') + ' @ TC ' + (safeNum(a.tc || tcRef)).toFixed(4) + '</span><div class="trio-moneda">' + fmt3m4(aUSD, tcRef, tcMXN) + '</div></div>';
       });
-      totRows.push(['Total anticipos', money4(r.totalAntUSD) + (r.totalAntCNY > 0.0001 ? ' + ' + money4(r.totalAntCNY) + ' CNY' : '')]);
+      totHtml += '<div class="res-row"><span><b>Total anticipos</b></span><div class="trio-moneda">' + fmt3m4(r.totalAntUSD, tcRef, tcMXN) + '</div></div>';
     }
 
-    totRows.push(['', '']);
-    totRows.push(['\u2500\u2500 SALDO AL PROVEEDOR \u2500\u2500', '']);
-    totRows.push(['Saldo al proveedor', '<b class="text-amber-700">' + money4(r.saldoProveedorUSD) + '</b>']);
+    totHtml += spc() + sep() + '<div class="res-row"><span><b>SALDO AL PROVEEDOR</b></span><span></span></div>' +
+      row3b('Saldo al proveedor', r.saldoProveedorUSD) +
+      spc() + sep() + '<div class="res-row"><span><b>ENVÍO DE DINERO (3%)</b></span><span></span></div>' +
+      row3('Comisión envío de dinero 3%', r.envioDineroUSD) +
+      spc() + sep() + '<div class="res-row"><span><b>IMPORTACIÓN M³</b></span><span></span></div>' +
+      '<div class="res-row"><span>Importación m³ (' + r.volCob.toFixed(4) + ' m³)</span><div class="trio-moneda">' + fmt3m4(r.importTotal, tcRef, tcMXN) + '</div></div>' +
+      spc() + sep() + '<div class="res-row"><span><b>B) Final MX /Total</b></span><span></span></div>' +
+      row3('  EXW Total', r.exwTotalUSD) +
+      row3('  + Gestor Total', r.gestorUSD) +
+      row3('  + Flete Yiwu Total', r.ywUSD) +
+      row3('  + Importación Total', r.importTotal) +
+      row3('  + Envío dinero Total', r.envioDineroUSD) +
+      '<div class="res-row"><span><b>  = Final MX /Total</b></span><div class="trio-moneda"><span class="mono-usd"><b>' + money4(r.finalMXTotal) + ' USD</b></span><span class="mono-cny">' + money4(toCNY(r.finalMXTotal, tcRef)) + ' CNY</span><span class="mono-mxn">' + money4(toMXN(r.finalMXTotal, tcMXN)) + ' MXN</span></div></div>' +
+      spc() + '<div class="res-row"><span><b>C) Pago al Importador</b></span><span></span></div>' +
+      row3('  Final MX /Total', r.finalMXTotal) +
+      row3('  − Anticipos', r.totalAntUSD) +
+      '<div class="res-row"><span><b>  = Pago al Importador</b></span><div class="trio-moneda"><span class="mono-usd"><b>' + money4(r.pagoImportador) + ' USD</b></span><span class="mono-cny">' + money4(toCNY(r.pagoImportador, tcRef)) + ' CNY</span><span class="mono-mxn">' + money4(toMXN(r.pagoImportador, tcMXN)) + ' MXN</span></div></div>';
 
-    totRows.push(['', '']);
-    totRows.push(['\u2500\u2500 ENV\u00CDO DE DINERO (3%) \u2500\u2500', '']);
-    totRows.push(['Comisión envío de dinero 3%', money4(r.envioDineroUSD)]);
+    const badgeGestor = p.incluir_gestor ? '<span class="badge-purple">📜 Gestor local 5%</span>' : '';
+    const provBadge = p.proveedor ? '<span class="badge-teal">🏭 ' + esc(p.proveedor) + '</span>' : '';
 
-    totRows.push(['', '']);
-    totRows.push(['\u2500\u2500 IMPORTACI\u00D3N M\u00B3 \u2500\u2500', '']);
-    totRows.push(['Importación m\u00B3 (' + r.volCob.toFixed(4) + ' m\u00B3)', money4(r.importTotal)]);
-
-    totRows.push(['', '']);
-    totRows.push(['\u2500\u2500 TOTALES \u2500\u2500', '']);
-    totRows.push(['B) Final MX /Total', '']);
-    totRows.push(['  EXW Total', money4(r.exwTotalUSD)]);
-    totRows.push(['  + Gestor Total', money4(r.gestorUSD)]);
-    totRows.push(['  + Flete Yiwu Total', money4(r.ywUSD)]);
-    totRows.push(['  + Importación Total', money4(r.importTotal)]);
-    totRows.push(['  + Envío dinero Total', money4(r.envioDineroUSD)]);
-    totRows.push(['  = Final MX /Total', '<b class="text-emerald-700">' + money4(r.finalMXTotal) + '</b>']);
-    totRows.push(['', '']);
-    totRows.push(['C) Pago al Importador', '']);
-    totRows.push(['  Final MX /Total', money4(r.finalMXTotal)]);
-    totRows.push(['  \u2212 Anticipos', money4(r.totalAntUSD)]);
-    totRows.push(['  = Pago al Importador', '<b class="text-blue-700">' + money4(r.pagoImportador) + '</b>']);
-
-    const badgeGestor = p.incluir_gestor ? '<span class="badge-purple">\uD83D\uDCDC Gestor local 5%</span>' : '';
-    const provBadge = p.proveedor ? '<span class="badge-teal">\uD83C\uDFED ' + esc(p.proveedor) + '</span>' : '';
-
-    const actions = tipo === 'borrador'
-      ? '<div class="mt-3 flex gap-2 flex-wrap">' +
-        '<button onclick="abrirAnticipo(\'' + p.id + '\')" class="btn-ghost text-xs px-3 py-1.5">\uD83D\uDCB8 Actualizar anticipo</button>' +
-        '<button onclick="editarProducto(\'' + p.id + '\')" class="btn-ghost text-xs px-3 py-1.5">Editar</button>' +
-        '<button onclick="confirmDelete(\'' + p.id + '\')" class="btn-danger text-xs px-3 py-1.5">Eliminar</button>' +
-        (p.estado === 'borrador_inicial' ? '<button onclick="marcarCompleto(\'' + p.id + '\')" class="btn-secondary text-xs px-3 py-1.5">Marcar completo</button>' : '') +
-        (p.estado === 'borrador_completo' ? '<button onclick="marcarComprado(\'' + p.id + '\')" class="btn-primary text-xs px-3 py-1.5">\uD83D\uDED2 Marcar comprado</button>' : '') +
-        '</div>'
-      : '<div class="mt-3 flex gap-2 flex-wrap">' +
-        '<button onclick="abrirAnticipo(\'' + p.id + '\')" class="btn-ghost text-xs px-3 py-1.5">\uD83D\uDCB8 Actualizar anticipo</button>' +
-        '<button onclick="editarProducto(\'' + p.id + '\')" class="btn-ghost text-xs px-3 py-1.5">Editar</button>' +
-        '<button onclick="confirmDelete(\'' + p.id + '\')" class="btn-danger text-xs px-3 py-1.5">Eliminar</button>' +
-        '</div>';
-
-    const rowHtml = ([k, v]) => {
-      if (k.startsWith('\u2500')) return '<div style="border-top:1px dashed #cbd5e1;margin:4px 0"></div>';
-      if (k === '' && v === '') return '<div style="height:4px"></div>';
-      return '<div class="res-row"><span>' + k + '</span><b>' + v + '</b></div>';
-    };
+    // Botones con data-action + data-id (más robusto que onclick inline)
+    let btns = '<button data-action="anticipo" data-id="' + dataId + '" class="btn-ghost text-xs px-3 py-1.5">💰 Actualizar anticipo</button>' +
+      '<button data-action="editar" data-id="' + dataId + '" class="btn-ghost text-xs px-3 py-1.5">Editar</button>' +
+      '<button data-action="eliminar" data-id="' + dataId + '" class="btn-danger text-xs px-3 py-1.5">Eliminar</button>';
+    if (tipo === 'borrador') {
+      if (p.estado === 'borrador_inicial') btns += '<button data-action="completo" data-id="' + dataId + '" class="btn-secondary text-xs px-3 py-1.5">Marcar completo</button>';
+      if (p.estado === 'borrador_completo') btns += '<button data-action="comprado" data-id="' + dataId + '" class="btn-primary text-xs px-3 py-1.5">🛒 Marcar comprado</button>';
+    }
 
     return '<div class="card">' +
       '<div class="flex flex-wrap gap-2 mb-2">' +
@@ -505,25 +500,18 @@ function cardProducto(p, tipo) {
         provBadge + badgeGestor +
       '</div>' +
       '<h4 class="font-semibold text-lg mb-1">' + esc(p.concepto) + '</h4>' +
-      '<p class="text-sm text-slate-500 mb-3">' + (p.cajas || 0) + ' cajas \u00D7 ' + (p.piezas_por_caja || 0) + ' pzas = ' + r.totalUnidades.toLocaleString('es-MX') + ' unidades \u00B7 ' + r.volCob.toFixed(4) + ' m\u00B3' + (p.volumen_directo ? ' <span class="badge-purple">Volumen directo</span>' : '') + '</p>' +
+      '<p class="text-sm text-slate-500 mb-3">' + (p.cajas || 0) + ' cajas × ' + (p.piezas_por_caja || 0) + ' pzas = ' + r.totalUnidades.toLocaleString('es-MX') + ' unidades · ' + r.volCob.toFixed(4) + ' m³' + (p.volumen_directo ? ' <span class="badge-purple">Volumen directo</span>' : '') + '</p>' +
       '<div class="grid md:grid-cols-2 gap-4">' +
-        '<div class="bg-slate-50 p-3 rounded-lg text-sm space-y-1">' +
-          '<h5 class="font-semibold text-xs text-slate-500 uppercase tracking-wider mb-2">Desglose unitario</h5>' +
-          unitRows.map(rowHtml).join('') +
-        '</div>' +
-        '<div class="bg-slate-50 p-3 rounded-lg text-sm space-y-1">' +
-          '<h5 class="font-semibold text-xs text-slate-500 uppercase tracking-wider mb-2">Desglose total del pedido</h5>' +
-          totRows.map(rowHtml).join('') +
-        '</div>' +
+        '<div class="bg-slate-50 p-3 rounded-lg text-sm space-y-1">' + unitHtml + '</div>' +
+        '<div class="bg-slate-50 p-3 rounded-lg text-sm space-y-1">' + totHtml + '</div>' +
       '</div>' +
-      actions +
+      '<div class="mt-3 flex gap-2 flex-wrap">' + btns + '</div>' +
     '</div>';
   } catch (e) {
     console.error('cardProducto error:', e, p);
     return '<div class="card border-red-300"><h4 class="font-semibold text-red-600">Error al renderizar: ' + esc(e.message) + '</h4><p class="text-sm text-slate-500">Producto: ' + esc(p.concepto || 'sin nombre') + '</p></div>';
   }
 }
-
 function renderBorradores() {
   const list = state.productos.filter(p => p.estado !== 'comprado' && (!state.filterEstado || p.estado === state.filterEstado))
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
@@ -1577,6 +1565,26 @@ function bindEvents() {
     state.filterEstado = e.currentTarget.dataset.f;
     renderBorradores();
   }));
+
+  // Delegados de eventos para botones de tarjetas (más robusto que onclick inline)
+  const attachCardClicks = (containerId) => {
+    const container = _(containerId);
+    if (!container) return;
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action][data-id]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      console.log('[card click]', action, id);
+      if (action === 'anticipo') abrirAnticipo(id);
+      else if (action === 'editar') editarProducto(id);
+      else if (action === 'eliminar') confirmDelete(id);
+      else if (action === 'completo') marcarCompleto(id);
+      else if (action === 'comprado') marcarComprado(id);
+    });
+  };
+  attachCardClicks('listaBorradores');
+  attachCardClicks('listaComprados');
 }
 
 /* ---------- Inicialización ---------- */
