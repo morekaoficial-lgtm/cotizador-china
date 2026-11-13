@@ -105,8 +105,8 @@ function persistLocal() {
 
 async function saveProducto(p) {
   if (state.online) {
-    const esEdicion = state.modalId === p.id;
-    await api('/api/productos' + (esEdicion ? '/' + p.id : ''), { method: esEdicion ? 'PUT' : 'POST', body: JSON.stringify(p) });
+    const existe = state.productos.some(x => x.id === p.id);
+    await api('/api/productos' + (existe ? '/' + p.id : ''), { method: existe ? 'PUT' : 'POST', body: JSON.stringify(p) });
   } else {
     const i = state.productos.findIndex(x => x.id === p.id);
     if (i >= 0) state.productos[i] = p; else state.productos.push(p);
