@@ -50,8 +50,15 @@ function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&
 
 /* ---------- Capa de datos ---------- */
 async function api(path, opts = {}) {
-  const res = await fetch(state.apiBase + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const url = state.apiBase + path;
+  console.log('[API]', opts.method || 'GET', url, opts.body ? JSON.parse(opts.body) : '');
+  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (!res.ok) {
+    let detail = '';
+    try { detail = await res.text(); } catch (e) {}
+    console.error('[API ERROR]', res.status, detail);
+    throw new Error('HTTP ' + res.status + (detail ? ': ' + detail.slice(0, 200) : ''));
+  }
   return res.status === 204 ? null : res.json();
 }
 function lsGet(key, fallback) {
@@ -1192,10 +1199,15 @@ function guardarCotizacion(estado) {
     created_at: state.modalId ? (state.productos.find(x => x.id === id)?.created_at || new Date().toISOString()) : new Date().toISOString(),
     anticipos: (state.productos.find(x => x.id === id)?.anticipos || [])
   };
-  saveProducto(p).then(() => {
-    state.modalId = null; limpiarForm(); renderLive();
-    loadAll().then(() => { renderBorradores(); renderComprados(); renderConsolidados(); renderImportador(); renderCierre(); });
-  });
+  saveProducto(p)
+    .then(() => {
+      state.modalId = null; limpiarForm(); renderLive();
+      loadAll().then(() => { renderBorradores(); renderComprados(); renderConsolidados(); renderImportador(); renderCierre(); });
+    })
+    .catch(e => {
+      console.error('Error guardando producto:', e);
+      alert('Error al guardar: ' + (e.message || 'Error desconocido'));
+    });
 }
 
 function limpiarForm() {
