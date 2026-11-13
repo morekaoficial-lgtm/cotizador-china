@@ -16,6 +16,7 @@ const GESTOR = 0.05;
 let state = {
   tarifa: 800,
   modoCobro: 'fraccion',
+  tcUSDMXN: 18.2,
   productos: [],
   consolidados: [],
   pagos: [],
@@ -33,11 +34,12 @@ let state = {
 
 const _ = id => document.getElementById(id);
 const money = (n, digits = 2) => {
-  const val = typeof n === 'number' ? n : 0;
+  const val = (typeof n === 'number' && !isNaN(n) && isFinite(n)) ? n : 0;
   return '$' + val.toLocaleString('es-MX', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 };
 const money4 = n => money(n, 4);
 const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+const safeNum = v => { const n = parseFloat(v); return (isNaN(n) || !isFinite(n)) ? 0 : n; };
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9));
 const today = () => new Date().toISOString().split('T')[0];
 
@@ -70,12 +72,14 @@ function lsSet(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 async function loadAll() {
   state.apiBase = lsGet(LS_KEYS.api, '');
   state.tarifa = num(lsGet(LS_KEYS.tarifa, 800)) || 800;
+  state.tcUSDMXN = num(lsGet('cim_tc_usd_mxn', 18.2)) || 18.2;
   try {
     const [cfg, productos, consolidados, proveedores] = await Promise.all([
       api('/api/config'), api('/api/productos'), api('/api/consolidados'), api('/api/proveedores')
     ]);
     state.tarifa = num(cfg.tarifa_m3) || state.tarifa;
     state.modoCobro = cfg.modo_cobro === 'completo' ? 'completo' : 'fraccion';
+    state.tcUSDMXN = num(cfg.tc_usd_mxn) || state.tcUSDMXN;
     state.productos = productos || [];
     state.consolidados = consolidados || [];
     state.proveedores = proveedores || [];
@@ -83,6 +87,7 @@ async function loadAll() {
   } catch {
     state.online = false;
     state.modoCobro = lsGet('cim_modo', 'fraccion') === 'completo' ? 'completo' : 'fraccion';
+    state.tcUSDMXN = num(lsGet('cim_tc_usd_mxn', 18.2)) || 18.2;
     state.productos = lsGet(LS_KEYS.productos, []);
     state.consolidados = lsGet(LS_KEYS.consolidados, []);
     state.proveedores = lsGet(LS_KEYS.proveedores, []);
@@ -103,13 +108,26 @@ function persistLocal() {
   lsSet(LS_KEYS.proveedores, state.proveedores);
 }
 
-async function saveProducto(p) {
+async function saveProducto(p, method) {
   if (state.online) {
-    const existe = state.productos.some(x => x.id === p.id);
-    await api('/api/productos' + (existe ? '/' + p.id : ''), { method: existe ? 'PUT' : 'POST', body: JSON.stringify(p) });
+    const url = method === 'POST' ? '/api/productos' : '/api/productos/' + p.id;
+    console.log('[saveProducto]', method, url, 'id=', p.id);
+    try {
+      const resp = await api(url, { method: method || 'POST', body: JSON.stringify(p) });
+      console.log('[saveProducto] OK', resp ? resp.id : 'no resp');
+      // Actualizar state.productos con la respuesta del servidor
+      if (resp && resp.id) {
+        const idx = state.productos.findIndex(x => x.id === resp.id);
+        if (idx >= 0) state.productos[idx] = resp;
+        else state.productos.unshift(resp);
+      }
+    } catch (e) {
+      console.error('[saveProducto] ERROR', e.message);
+      throw e;
+    }
   } else {
     const i = state.productos.findIndex(x => x.id === p.id);
-    if (i >= 0) state.productos[i] = p; else state.productos.push(p);
+    if (i >= 0) state.productos[i] = p; else state.productos.unshift(p);
     persistLocal();
   }
 }
@@ -208,14 +226,20 @@ function calcular(p, tarifa, modo, tcRef) {
 
 function calcularDinero(p, tarifa, modo, tcRef) {
   const r = calcular(p, tarifa, modo, tcRef);
-  const ant = p.anticipos || [];
+  const ant = Array.isArray(p.anticipos) ? p.anticipos : [];
 
-  // Total anticipos
-  const totalAntUSD = ant.reduce((s, a) => s + toUSD(a.monto || 0, a.moneda || 'USD', a.tc || tcRef), 0);
-  const totalAntCNY = ant.reduce((s, a) => s + (a.moneda === 'CNY' ? (a.monto || 0) : 0), 0);
+  // Total anticipos (defensivo contra datos corruptos)
+  const totalAntUSD = ant.reduce((s, a) => {
+    if (!a || typeof a !== 'object') return s;
+    const m = safeNum(a.monto);
+    const t = safeNum(a.tc || tcRef) || 7.2;
+    return s + toUSD(m, a.moneda || 'USD', t);
+  }, 0);
+  const totalAntCNY = ant.reduce((s, a) => s + ((a && a.moneda === 'CNY') ? safeNum(a.monto) : 0), 0);
 
   // Saldo al proveedor = Compra sin importación - Anticipos
-  const saldoProveedorUSD = Math.max(0, r.compraSinImportTotal - totalAntUSD);
+  const compraSinImport = safeNum(r.compraSinImportTotal);
+  const saldoProveedorUSD = Math.max(0, compraSinImport - totalAntUSD);
   const saldoProveedorUnit = r.totalUnidades > 0 ? saldoProveedorUSD / r.totalUnidades : 0;
 
   // Envío de dinero 3% SOBRE el saldo al proveedor
@@ -223,8 +247,8 @@ function calcularDinero(p, tarifa, modo, tcRef) {
   const envioDineroUnit = r.totalUnidades > 0 ? envioDineroUSD / r.totalUnidades : 0;
 
   // Final MX = EXW + Gestor + Yiwu + Importación + Envío de dinero
-  const finalMXUnit = r.exwUnit + r.gestorUnit + r.yiwuUnit + r.importUnit + envioDineroUnit;
-  const finalMXTotal = r.exwTotalUSD + r.gestorUSD + r.ywUSD + r.importTotal + envioDineroUSD;
+  const finalMXUnit = safeNum(r.exwUnit) + safeNum(r.gestorUnit) + safeNum(r.yiwuUnit) + safeNum(r.importUnit) + envioDineroUnit;
+  const finalMXTotal = safeNum(r.exwTotalUSD) + safeNum(r.gestorUSD) + safeNum(r.ywUSD) + safeNum(r.importTotal) + envioDineroUSD;
 
   // Pago al importador = Final MX Total - Anticipos
   const pagoImportador = finalMXTotal - totalAntUSD;
@@ -251,6 +275,7 @@ function readForm() {
     peso_kg: num(_('f_peso').value),
     costo_yiwu: num(_('f_yiwu').value), costo_yiwu_moneda: _('f_yiwu_moneda').value,
     tc_ref: num(_('f_tc').value) || 7.2,
+    tc_usd_mxn: num(_('f_tc_mxn').value) || state.tcUSDMXN || 18.2,
     incluir_gestor: _('f_gestor').checked,
     volumen_directo: volumenDirecto,
     volumen_m3: volumenDirecto ? num(_('f_volumen_m3').value) : null,
@@ -518,11 +543,11 @@ function renderComprados() {
 
 function marcarCompleto(id) {
   const p = state.productos.find(x => x.id === id);
-  if (p) { p.estado = 'borrador_completo'; saveProducto(p); renderBorradores(); renderPreviewConsolidado(); }
+  if (p) { p.estado = 'borrador_completo'; saveProducto(p, 'PUT').catch(e => console.error(e)); renderBorradores(); renderPreviewConsolidado(); }
 }
 function marcarComprado(id) {
   const p = state.productos.find(x => x.id === id);
-  if (p) { p.estado = 'comprado'; saveProducto(p); renderBorradores(); renderComprados(); renderPreviewConsolidado(); }
+  if (p) { p.estado = 'comprado'; saveProducto(p, 'PUT').catch(e => console.error(e)); renderBorradores(); renderComprados(); renderPreviewConsolidado(); }
 }
 
 /* =====================================================================
@@ -551,7 +576,7 @@ function crearConsolidado() {
   const tarifa = num(_('c_tarifa').value) || state.tarifa;
   const vol = items.reduce((s, p) => s + ((p.largo_cm || 0) * (p.ancho_cm || 0) * (p.alto_cm || 0) / 1e6 * (p.cajas || 0)), 0);
   const c = { id: uid(), nombre, items, tarifa_m3: tarifa, modo_cobro: state.modoCobro, created_at: new Date().toISOString(), volumen: vol };
-  items.forEach(p => { p.consolidado_id = c.id; saveProducto(p); });
+  items.forEach(p => { p.consolidado_id = c.id; saveProducto(p, 'PUT').catch(e => console.error(e)); });
   saveConsolidado(c);
   renderComprados(); renderConsolidados(); renderPreviewConsolidado();
 }
@@ -1146,14 +1171,18 @@ function agregarAnticipo() {
   if (!p) return;
   if (!p.anticipos) p.anticipos = [];
   p.anticipos.push({ monto, moneda, tc, fecha, id: uid() });
-  saveProducto(p).then(() => { renderBorradores(); renderComprados(); abrirAnticipo(state.modalId); renderImportador(); renderCierre(); });
+  saveProducto(p, 'PUT')
+    .then(() => { renderBorradores(); renderComprados(); abrirAnticipo(state.modalId); renderImportador(); renderCierre(); })
+    .catch(e => { console.error('Error agregando anticipo:', e); alert('Error al guardar anticipo: ' + e.message); });
 }
 
 function eliminarAnticipo(idx) {
   const p = state.productos.find(x => x.id === state.modalId);
   if (!p || !p.anticipos) return;
   p.anticipos.splice(idx, 1);
-  saveProducto(p).then(() => { renderBorradores(); renderComprados(); abrirAnticipo(state.modalId); renderImportador(); renderCierre(); });
+  saveProducto(p, 'PUT')
+    .then(() => { renderBorradores(); renderComprados(); abrirAnticipo(state.modalId); renderImportador(); renderCierre(); })
+    .catch(e => { console.error('Error eliminando anticipo:', e); alert('Error al eliminar anticipo: ' + e.message); });
 }
 
 function confirmDelete(id) {
@@ -1180,7 +1209,9 @@ function editarProducto(id) {
   _('f_cajas').value = p.cajas || ''; _('f_piezas').value = p.piezas_por_caja || ''; _('f_precio').value = p.precio_exw || '';
   _('f_precio_moneda').value = p.precio_exw_moneda || 'USD'; _('f_peso').value = p.peso_kg || '';
   _('f_yiwu').value = p.costo_yiwu || ''; _('f_yiwu_moneda').value = p.costo_yiwu_moneda || 'USD';
-  _('f_tc').value = (p.tc_ref || 7.2).toFixed(4); _('f_gestor').checked = !!p.incluir_gestor;
+  _('f_tc').value = (p.tc_ref || 7.2).toFixed(4);
+  _('f_tc_mxn').value = (p.tc_usd_mxn || state.tcUSDMXN || 18.2).toFixed(4);
+  _('f_gestor').checked = !!p.incluir_gestor;
   _('f_volumen_directo').checked = !!p.volumen_directo;
   _('f_volumen_m3').value = p.volumen_m3 || '';
   toggleVolumenDirecto();
@@ -1194,13 +1225,15 @@ function guardarCotizacion(estado) {
   const f = readForm();
   const err = validarForm(f);
   if (err) return alert(err);
+  const esEdicion = !!state.modalId;
   const id = state.modalId || uid();
   const p = {
     ...f, id, estado,
-    created_at: state.modalId ? (state.productos.find(x => x.id === id)?.created_at || new Date().toISOString()) : new Date().toISOString(),
+    created_at: esEdicion ? (state.productos.find(x => x.id === id)?.created_at || new Date().toISOString()) : new Date().toISOString(),
     anticipos: (state.productos.find(x => x.id === id)?.anticipos || [])
   };
-  saveProducto(p)
+  const method = esEdicion ? 'PUT' : 'POST';
+  saveProducto(p, method)
     .then(() => {
       state.modalId = null; limpiarForm(); renderLive();
       loadAll().then(() => { renderBorradores(); renderComprados(); renderConsolidados(); renderImportador(); renderCierre(); });
@@ -1217,7 +1250,8 @@ function limpiarForm() {
   _('f_cajas').value = ''; _('f_piezas').value = ''; _('f_precio').value = '';
   _('f_precio_moneda').value = 'USD'; _('f_peso').value = '';
   _('f_yiwu').value = ''; _('f_yiwu_moneda').value = 'USD';
-  _('f_tc').value = '7.20'; _('f_gestor').checked = false;
+  _('f_tc').value = '7.20'; _('f_tc_mxn').value = (state.tcUSDMXN || 18.2).toFixed(2);
+  _('f_gestor').checked = false;
   _('f_volumen_directo').checked = false;
   _('f_volumen_m3').value = '';
   toggleVolumenDirecto();
@@ -1528,7 +1562,7 @@ function bindEvents() {
     if (el) el.addEventListener('input', actualizarResumenPago);
   });
 
-  ['f_largo','f_ancho','f_alto','f_cajas','f_piezas','f_precio','f_precio_moneda','f_yiwu','f_yiwu_moneda','f_tc','f_gestor','f_volumen_m3'].forEach(id => {
+  ['f_largo','f_ancho','f_alto','f_cajas','f_piezas','f_precio','f_precio_moneda','f_yiwu','f_yiwu_moneda','f_tc','f_tc_mxn','f_gestor','f_volumen_m3'].forEach(id => {
     const el = _(id);
     if (el) el.addEventListener('input', renderLive);
   });
