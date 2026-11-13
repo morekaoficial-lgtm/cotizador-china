@@ -119,6 +119,12 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
 .det-table tr.subtotal td { background: #f1f5f9; font-weight: 700; }
 .det-table tr.total td { background: #ecfdf5; font-weight: 800; color: #047857; }
 
+/* Formato 3 monedas */
+.trio-moneda { display: flex; flex-direction: column; gap: 1px; text-align: right; }
+.trio-moneda .mono-usd { color: #0f172a; font-weight: 700; }
+.trio-moneda .mono-cny { color: #b45309; font-size: .78em; }
+.trio-moneda .mono-mxn { color: #047857; font-size: .78em; }
+
 /* Reportes */
 @media print {
   header, nav, #tabs, .btn-primary, .btn-secondary, .filter-btn { display: none !important; }
