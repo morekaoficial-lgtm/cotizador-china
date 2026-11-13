@@ -45,17 +45,18 @@ app.get('/api/health', async (_req, res) => {
 
 /* ---------- Config ---------- */
 app.get('/api/config', async (_req, res) => {
-  const { rows } = await pool.query("SELECT key, value FROM config WHERE key IN ('tarifa_m3','modo_cobro')");
-  const cfg = { tarifa_m3: 800, modo_cobro: 'fraccion' };
+  const { rows } = await pool.query("SELECT key, value FROM config WHERE key IN ('tarifa_m3','modo_cobro','tc_usd_mxn')");
+  const cfg = { tarifa_m3: 800, modo_cobro: 'fraccion', tc_usd_mxn: 18.2 };
   rows.forEach(r => {
     if (r.key === 'tarifa_m3') cfg.tarifa_m3 = parseFloat(r.value);
     if (r.key === 'modo_cobro') cfg.modo_cobro = r.value;
+    if (r.key === 'tc_usd_mxn') cfg.tc_usd_mxn = parseFloat(r.value);
   });
   res.json(cfg);
 });
 
 app.put('/api/config', async (req, res) => {
-  const { tarifa_m3, modo_cobro } = req.body;
+  const { tarifa_m3, modo_cobro, tc_usd_mxn } = req.body;
   if (!(Number(tarifa_m3) > 0)) return res.status(400).json({ error: 'tarifa_m3 inválida' });
   await pool.query(
     "INSERT INTO config (key, value) VALUES ('tarifa_m3', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
@@ -65,7 +66,12 @@ app.put('/api/config', async (req, res) => {
       "INSERT INTO config (key, value) VALUES ('modo_cobro', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
       [modo_cobro]);
   }
-  res.json({ ok: true, tarifa_m3, modo_cobro });
+  if (tc_usd_mxn !== undefined && Number(tc_usd_mxn) > 0) {
+    await pool.query(
+      "INSERT INTO config (key, value) VALUES ('tc_usd_mxn', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+      [tc_usd_mxn]);
+  }
+  res.json({ ok: true, tarifa_m3, modo_cobro, tc_usd_mxn });
 });
 
 /* ---------- Productos ---------- */
@@ -73,7 +79,7 @@ app.get('/api/productos', async (_req, res) => {
   const { rows } = await pool.query(
     `SELECT id, concepto, largo_cm, ancho_cm, alto_cm, cajas, piezas_por_caja,
             precio_exw, precio_exw_moneda, peso_kg, costo_yiwu, costo_yiwu_moneda,
-            tc_ref, incluir_gestor, volumen_directo, volumen_m3, estado,
+            tc_ref, tc_usd_mxn, incluir_gestor, volumen_directo, volumen_m3, estado,
             proveedor, anticipos, consolidado_id, created_at
      FROM productos ORDER BY created_at DESC`);
   res.json(rows.map(r => ({ ...r, proveedor: r.proveedor || {}, anticipos: r.anticipos || [] })));
@@ -85,12 +91,12 @@ app.post('/api/productos', async (req, res) => {
   if (err) return res.status(400).json({ error: err });
   const { rows } = await pool.query(
     `INSERT INTO productos (id, concepto, largo_cm, ancho_cm, alto_cm, cajas, piezas_por_caja,
-       precio_exw, precio_exw_moneda, peso_kg, costo_yiwu, costo_yiwu_moneda, tc_ref, incluir_gestor,
+       precio_exw, precio_exw_moneda, peso_kg, costo_yiwu, costo_yiwu_moneda, tc_ref, tc_usd_mxn, incluir_gestor,
        volumen_directo, volumen_m3, estado, proveedor, anticipos)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
     [p.id || genId(), p.concepto, p.largo_cm || 0, p.ancho_cm || 0, p.alto_cm || 0, p.cajas, p.piezas_por_caja,
      p.precio_exw, p.precio_exw_moneda || 'USD', p.peso_kg || 0, p.costo_yiwu, p.costo_yiwu_moneda || 'USD',
-     p.tc_ref || 7.2, !!p.incluir_gestor, !!p.volumen_directo, p.volumen_m3 || null, p.estado || 'borrador_inicial',
+     p.tc_ref || 7.2, p.tc_usd_mxn || 18.2, !!p.incluir_gestor, !!p.volumen_directo, p.volumen_m3 || null, p.estado || 'borrador_inicial',
      JSON.stringify(p.proveedor || {}), JSON.stringify(p.anticipos || [])]);
   res.status(201).json({ ...rows[0], proveedor: rows[0].proveedor || {}, anticipos: rows[0].anticipos || [] });
 });
@@ -101,12 +107,12 @@ app.put('/api/productos/:id', async (req, res) => {
   if (err) return res.status(400).json({ error: err });
   const { rowCount } = await pool.query(
     `UPDATE productos SET concepto=$2, largo_cm=$3, ancho_cm=$4, alto_cm=$5, cajas=$6, piezas_por_caja=$7,
-       precio_exw=$8, precio_exw_moneda=$9, peso_kg=$10, costo_yiwu=$11, costo_yiwu_moneda=$12, tc_ref=$13,
-       incluir_gestor=$14, volumen_directo=$15, volumen_m3=$16, estado=$17, proveedor=$18, anticipos=$19, consolidado_id=$20, updated_at=NOW()
+       precio_exw=$8, precio_exw_moneda=$9, peso_kg=$10, costo_yiwu=$11, costo_yiwu_moneda=$12, tc_ref=$13, tc_usd_mxn=$14,
+       incluir_gestor=$15, volumen_directo=$16, volumen_m3=$17, estado=$18, proveedor=$19, anticipos=$20, consolidado_id=$21, updated_at=NOW()
      WHERE id=$1`,
     [req.params.id, p.concepto, p.largo_cm || 0, p.ancho_cm || 0, p.alto_cm || 0, p.cajas, p.piezas_por_caja,
      p.precio_exw, p.precio_exw_moneda || 'USD', p.peso_kg || 0, p.costo_yiwu, p.costo_yiwu_moneda || 'USD',
-     p.tc_ref || 7.2, !!p.incluir_gestor, !!p.volumen_directo, p.volumen_m3 || null, p.estado,
+     p.tc_ref || 7.2, p.tc_usd_mxn || 18.2, !!p.incluir_gestor, !!p.volumen_directo, p.volumen_m3 || null, p.estado,
      JSON.stringify(p.proveedor || {}), JSON.stringify(p.anticipos || []), p.consolidado_id || null]);
   if (!rowCount) return res.status(404).json({ error: 'No encontrado' });
   const { rows } = await pool.query('SELECT * FROM productos WHERE id=$1', [req.params.id]);
