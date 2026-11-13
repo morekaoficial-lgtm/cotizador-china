@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS productos (
   costo_yiwu       NUMERIC(12,4) NOT NULL DEFAULT 0,
   costo_yiwu_moneda VARCHAR(3) NOT NULL DEFAULT 'USD',
   tc_ref           NUMERIC(10,4) NOT NULL DEFAULT 7.2,
+  tc_usd_mxn       NUMERIC(10,4) NOT NULL DEFAULT 18.2,
   incluir_gestor   BOOLEAN NOT NULL DEFAULT FALSE,
   volumen_directo  BOOLEAN NOT NULL DEFAULT FALSE,
   volumen_m3       NUMERIC(12,4) DEFAULT NULL,
