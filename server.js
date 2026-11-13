@@ -15,31 +15,24 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const app = express();
 app.use(cors());
 
-/* Log raw body para diagnosticar JSON malformado */
-app.use((req, res, next) => {
-  if (req.method === 'POST' || req.method === 'PUT') {
-    let body = '';
-    req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
-      req.rawBody = body;
-      console.log(`[${req.method}] ${req.url} | Body raw (${body.length} chars):`, body.slice(0, 500));
-      next();
-    });
-  } else {
-    next();
-  }
-});
-
+/* Log body para diagnosticar errores (NO consume el stream) */
 app.use(express.json({
   verify: (req, res, buf) => { req.rawBuf = buf; }
 }));
+
+app.use((req, res, next) => {
+  if ((req.method === 'POST' || req.method === 'PUT') && req.rawBuf) {
+    console.log(`[${req.method}] ${req.url} | Body:`, req.rawBuf.toString('utf-8').slice(0, 500));
+  }
+  next();
+});
 
 /* Capturar errores de JSON malformado */
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     console.error('JSON parse error:', err.message);
-    console.error('Raw body received:', req.rawBody || '(empty)');
-    return res.status(400).json({ error: 'JSON malformado', detail: err.message, received: req.rawBody });
+    console.error('Raw body received:', req.rawBuf ? req.rawBuf.toString('utf-8') : '(empty)');
+    return res.status(400).json({ error: 'JSON malformado', detail: err.message, received: req.rawBuf ? req.rawBuf.toString('utf-8').slice(0, 500) : '(empty)' });
   }
   next(err);
 });
