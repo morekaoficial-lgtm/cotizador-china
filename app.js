@@ -529,34 +529,13 @@ function cardProducto(p, tipo) {
     const provBadge = p.proveedor ? '<span class="badge-teal">🏭 ' + esc(p.proveedor) + '</span>' : '';
 
     // Botones
-    let btns = '<button data-action="anticipo" data-id="' + dataId + '" class="btn-ghost text-sm px-4 py-2">💰 Actualizar anticipo</button>' +
-      '<button data-action="editar" data-id="' + dataId + '" class="btn-ghost text-sm px-4 py-2">✏️ Editar</button>' +
-      '<button data-action="eliminar" data-id="' + dataId + '" class="btn-danger text-sm px-4 py-2">🗑️ Eliminar</button>';
+    let btns = '<button onclick="window.abrirAnticipo(\'' + dataId + '\')" class="btn-ghost text-sm px-4 py-2">💰 Actualizar anticipo</button>' +
+      '<button onclick="window.editarProducto(\'' + dataId + '\')" class="btn-ghost text-sm px-4 py-2">✏️ Editar</button>' +
+      '<button onclick="window.confirmDelete(\'' + dataId + '\')" class="btn-danger text-sm px-4 py-2">🗑️ Eliminar</button>';
     if (tipo === 'borrador') {
-      if (p.estado === 'borrador_inicial') btns += '<button data-action="completo" data-id="' + dataId + '" class="btn-secondary text-sm px-4 py-2">✓ Marcar completo</button>';
-      if (p.estado === 'borrador_completo') btns += '<button data-action="comprado" data-id="' + dataId + '" class="btn-primary text-sm px-4 py-2">🛒 Marcar comprado</button>';
+      if (p.estado === 'borrador_inicial') btns += '<button onclick="window.marcarCompleto(\'' + dataId + '\')" class="btn-secondary text-sm px-4 py-2">✓ Marcar completo</button>';
+      if (p.estado === 'borrador_completo') btns += '<button onclick="window.marcarComprado(\'' + dataId + '\')" class="btn-primary text-sm px-4 py-2">🛒 Marcar comprado</button>';
     }
-
-    return '<div class="card">' +
-      '<div class="flex flex-wrap gap-2 mb-3">' +
-        '<span class="badge-blue">' + (ESTADO_LABEL[p.estado] || p.estado) + '</span>' +
-        provBadge + badgeGestor +
-      '</div>' +
-      '<h4 class="font-bold text-xl mb-1 text-slate-800">' + esc(p.concepto) + '</h4>' +
-      '<p class="text-sm text-slate-500 mb-4">' + (p.cajas || 0) + ' cajas × ' + (p.piezas_por_caja || 0) + ' pzas = <b>' + r.totalUnidades.toLocaleString('es-MX') + '</b> unidades · <b>' + r.volCob.toFixed(4) + ' m³</b>' + (p.volumen_directo ? ' <span class="badge-purple text-xs">Volumen directo</span>' : '') + '</p>' +
-      '<div class="grid md:grid-cols-2 gap-5">' +
-        '<div class="bg-white border border-slate-200 rounded-xl p-4">' +
-          '<h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Desglose unitario</h5>' +
-          unitHtml +
-        '</div>' +
-        '<div class="bg-white border border-slate-200 rounded-xl p-4">' +
-          '<h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Desglose total del pedido</h5>' +
-          totHtml +
-        '</div>' +
-      '</div>' +
-      resumen3M +
-      '<div class="mt-4 flex gap-2 flex-wrap">' + btns + '</div>' +
-    '</div>';
   } catch (e) {
     console.error('cardProducto error:', e, p);
     return '<div class="card border-red-300"><h4 class="font-semibold text-red-600">Error al renderizar: ' + esc(e.message) + '</h4><p class="text-sm text-slate-500">Producto: ' + esc(p.concepto || 'sin nombre') + '</p></div>';
@@ -580,10 +559,12 @@ function renderComprados() {
 }
 
 function marcarCompleto(id) {
+  console.log('[marcarCompleto]', id);
   const p = state.productos.find(x => x.id === id);
   if (p) { p.estado = 'borrador_completo'; saveProducto(p, 'PUT').catch(e => console.error(e)); renderBorradores(); renderPreviewConsolidado(); }
 }
 function marcarComprado(id) {
+  console.log('[marcarComprado]', id);
   const p = state.productos.find(x => x.id === id);
   if (p) { p.estado = 'comprado'; saveProducto(p, 'PUT').catch(e => console.error(e)); renderBorradores(); renderComprados(); renderPreviewConsolidado(); }
 }
@@ -1190,6 +1171,7 @@ function volverCierre() { showScreen('screenCierre'); }
 function cerrarPago() { showScreen('screenCierre'); }
 
 function abrirAnticipo(id) {
+  console.log('[abrirAnticipo]', id);
   const p = state.productos.find(x => x.id === id);
   if (!p) return;
   state.modalId = id;
@@ -1224,6 +1206,7 @@ function eliminarAnticipo(idx) {
 }
 
 function confirmDelete(id) {
+  console.log('[confirmDelete]', id);
   const p = state.productos.find(x => x.id === id);
   state.deleteId = id;
   _('delNombre').textContent = p ? p.concepto : '';
@@ -1240,6 +1223,7 @@ function doDelete() {
 
 /* ---------- CRUD Producto ---------- */
 function editarProducto(id) {
+  console.log('[editarProducto]', id);
   const p = state.productos.find(x => x.id === id);
   if (!p) return;
   _('f_concepto').value = p.concepto || ''; _('f_proveedor').value = p.proveedor || ''; _('f_ciudad').value = p.ciudad || '';
@@ -1636,6 +1620,14 @@ function bindEvents() {
   attachCardClicks('listaBorradores');
   attachCardClicks('listaComprados');
 }
+
+/* ---------- Exponer funciones globales para onclick inline ---------- */
+window.abrirAnticipo = function(id) { console.log('[GLOBAL] abrirAnticipo', id); return abrirAnticipo(id); };
+window.editarProducto = function(id) { console.log('[GLOBAL] editarProducto', id); return editarProducto(id); };
+window.confirmDelete = function(id) { console.log('[GLOBAL] confirmDelete', id); return confirmDelete(id); };
+window.marcarCompleto = function(id) { console.log('[GLOBAL] marcarCompleto', id); return marcarCompleto(id); };
+window.marcarComprado = function(id) { console.log('[GLOBAL] marcarComprado', id); return marcarComprado(id); };
+window.eliminarAnticipo = function(idx) { console.log('[GLOBAL] eliminarAnticipo', idx); return eliminarAnticipo(idx); };
 
 /* ---------- Inicialización ---------- */
 window.addEventListener('DOMContentLoaded', () => {
