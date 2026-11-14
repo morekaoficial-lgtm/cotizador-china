@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cotizador de Importaciones China → México</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
@@ -196,10 +197,11 @@
     <section id="tab-reportes" class="tab-panel hidden">
       <div class="card mb-6">
         <h2 class="section-title">📊 Reportes y Balances</h2>
-        <div class="grid md:grid-cols-3 gap-4 mb-4">
+        <div class="grid md:grid-cols-4 gap-4 mb-4">
           <button onclick="generarReporte('proveedores')" class="btn-secondary w-full">🏭 Balance por Proveedor</button>
           <button onclick="generarReporte('global')" class="btn-secondary w-full">🌍 Compra Global Detallada</button>
           <button onclick="generarReporte('importador')" class="btn-secondary w-full">💰 Balance al Importador</button>
+          <button onclick="exportarExcel()" class="btn-primary w-full">📊 Exportar a Excel</button>
         </div>
         <div id="reporteContainer" class="hidden">
           <div class="flex justify-between items-center mb-3">
@@ -480,6 +482,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=33"></script>
+  <script src="app.js?v=34"></script>
 </body>
 </html>
