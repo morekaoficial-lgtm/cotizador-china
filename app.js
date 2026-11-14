@@ -529,24 +529,44 @@ function cardProducto(p, tipo) {
     const provBadge = p.proveedor ? '<span class="badge-teal">🏭 ' + esc(p.proveedor) + '</span>' : '';
 
     // Botones
-    let btns = '<button onclick="window.abrirAnticipo(\'' + dataId + '\')" class="btn-ghost text-sm px-4 py-2">💰 Actualizar anticipo</button>' +
-      '<button onclick="window.editarProducto(\'' + dataId + '\')" class="btn-ghost text-sm px-4 py-2">✏️ Editar</button>' +
-      '<button onclick="window.confirmDelete(\'' + dataId + '\')" class="btn-danger text-sm px-4 py-2">🗑️ Eliminar</button>';
+    let btns = '<button data-act="anticipo" data-pid="' + dataId + '" class="btn-ghost text-sm px-4 py-2">💰 Actualizar anticipo</button>' +
+      '<button data-act="editar" data-pid="' + dataId + '" class="btn-ghost text-sm px-4 py-2">✏️ Editar</button>' +
+      '<button data-act="eliminar" data-pid="' + dataId + '" class="btn-danger text-sm px-4 py-2">🗑️ Eliminar</button>';
     if (tipo === 'borrador') {
-      if (p.estado === 'borrador_inicial') btns += '<button onclick="window.marcarCompleto(\'' + dataId + '\')" class="btn-secondary text-sm px-4 py-2">✓ Marcar completo</button>';
-      if (p.estado === 'borrador_completo') btns += '<button onclick="window.marcarComprado(\'' + dataId + '\')" class="btn-primary text-sm px-4 py-2">🛒 Marcar comprado</button>';
+      if (p.estado === 'borrador_inicial') btns += '<button data-act="completo" data-pid="' + dataId + '" class="btn-secondary text-sm px-4 py-2">✓ Marcar completo</button>';
+      if (p.estado === 'borrador_completo') btns += '<button data-act="comprado" data-pid="' + dataId + '" class="btn-primary text-sm px-4 py-2">🛒 Marcar comprado</button>';
     }
   } catch (e) {
     console.error('cardProducto error:', e, p);
     return '<div class="card border-red-300"><h4 class="font-semibold text-red-600">Error al renderizar: ' + esc(e.message) + '</h4><p class="text-sm text-slate-500">Producto: ' + esc(p.concepto || 'sin nombre') + '</p></div>';
   }
 }
+function bindCardButtons(container) {
+  if (!container) return;
+  container.querySelectorAll('[data-act][data-pid]').forEach(btn => {
+    const action = btn.dataset.act;
+    const pid = btn.dataset.pid;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[CLICK]', action, pid);
+      if (action === 'anticipo') abrirAnticipo(pid);
+      else if (action === 'editar') editarProducto(pid);
+      else if (action === 'eliminar') confirmDelete(pid);
+      else if (action === 'completo') marcarCompleto(pid);
+      else if (action === 'comprado') marcarComprado(pid);
+    });
+  });
+}
+
 function renderBorradores() {
   const list = state.productos.filter(p => p.estado !== 'comprado' && (!state.filterEstado || p.estado === state.filterEstado))
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   _('countBorradores').textContent = list.length || '';
   _('emptyBorradores').classList.toggle('hidden', list.length > 0);
-  _('listaBorradores').innerHTML = list.map(p => cardProducto(p, 'borrador')).join('');
+  const container = _('listaBorradores');
+  container.innerHTML = list.map(p => cardProducto(p, 'borrador')).join('');
+  bindCardButtons(container);
 }
 
 function renderComprados() {
@@ -554,7 +574,9 @@ function renderComprados() {
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   _('countComprados').textContent = list.length || '';
   _('emptyComprados').classList.toggle('hidden', list.length > 0);
-  _('listaComprados').innerHTML = list.map(p => cardProducto(p, 'comprado')).join('');
+  const container = _('listaComprados');
+  container.innerHTML = list.map(p => cardProducto(p, 'comprado')).join('');
+  bindCardButtons(container);
   renderCierre();
 }
 
@@ -1600,34 +1622,7 @@ function bindEvents() {
     renderBorradores();
   }));
 
-  // Delegados de eventos para botones de tarjetas (más robusto que onclick inline)
-  const attachCardClicks = (containerId) => {
-    const container = _(containerId);
-    if (!container) return;
-    container.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-action][data-id]');
-      if (!btn) return;
-      const action = btn.dataset.action;
-      const id = btn.dataset.id;
-      console.log('[card click]', action, id);
-      if (action === 'anticipo') abrirAnticipo(id);
-      else if (action === 'editar') editarProducto(id);
-      else if (action === 'eliminar') confirmDelete(id);
-      else if (action === 'completo') marcarCompleto(id);
-      else if (action === 'comprado') marcarComprado(id);
-    });
-  };
-  attachCardClicks('listaBorradores');
-  attachCardClicks('listaComprados');
 }
-
-/* ---------- Exponer funciones globales para onclick inline ---------- */
-window.abrirAnticipo = function(id) { console.log('[GLOBAL] abrirAnticipo', id); return abrirAnticipo(id); };
-window.editarProducto = function(id) { console.log('[GLOBAL] editarProducto', id); return editarProducto(id); };
-window.confirmDelete = function(id) { console.log('[GLOBAL] confirmDelete', id); return confirmDelete(id); };
-window.marcarCompleto = function(id) { console.log('[GLOBAL] marcarCompleto', id); return marcarCompleto(id); };
-window.marcarComprado = function(id) { console.log('[GLOBAL] marcarComprado', id); return marcarComprado(id); };
-window.eliminarAnticipo = function(idx) { console.log('[GLOBAL] eliminarAnticipo', idx); return eliminarAnticipo(idx); };
 
 /* ---------- Inicialización ---------- */
 window.addEventListener('DOMContentLoaded', () => {
