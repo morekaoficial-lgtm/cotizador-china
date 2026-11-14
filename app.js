@@ -562,32 +562,12 @@ function cardProducto(p, tipo) {
     return '<div class="card border-red-300"><h4 class="font-semibold text-red-600">Error al renderizar: ' + esc(e.message) + '</h4><p class="text-sm text-slate-500">Producto: ' + esc(p.concepto || 'sin nombre') + '</p></div>';
   }
 }
-function bindCardButtons(container) {
-  if (!container) return;
-  container.querySelectorAll('[data-act][data-pid]').forEach(btn => {
-    const action = btn.dataset.act;
-    const pid = btn.dataset.pid;
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('[CLICK]', action, pid);
-      if (action === 'anticipo') abrirAnticipo(pid);
-      else if (action === 'editar') editarProducto(pid);
-      else if (action === 'eliminar') confirmDelete(pid);
-      else if (action === 'completo') marcarCompleto(pid);
-      else if (action === 'comprado') marcarComprado(pid);
-    });
-  });
-}
-
 function renderBorradores() {
   const list = state.productos.filter(p => p.estado !== 'comprado' && (!state.filterEstado || p.estado === state.filterEstado))
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   _('countBorradores').textContent = list.length || '';
   _('emptyBorradores').classList.toggle('hidden', list.length > 0);
-  const container = _('listaBorradores');
-  container.innerHTML = list.map(p => cardProducto(p, 'borrador')).join('');
-  bindCardButtons(container);
+  _('listaBorradores').innerHTML = list.map(p => cardProducto(p, 'borrador')).join('');
 }
 
 function renderComprados() {
@@ -595,9 +575,7 @@ function renderComprados() {
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   _('countComprados').textContent = list.length || '';
   _('emptyComprados').classList.toggle('hidden', list.length > 0);
-  const container = _('listaComprados');
-  container.innerHTML = list.map(p => cardProducto(p, 'comprado')).join('');
-  bindCardButtons(container);
+  _('listaComprados').innerHTML = list.map(p => cardProducto(p, 'comprado')).join('');
   renderCierre();
 }
 
@@ -1643,6 +1621,19 @@ function bindEvents() {
     renderBorradores();
   }));
 
+  // Delegado de eventos global para botones de tarjetas (más robusto que addEventListener por botón)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act][data-pid]');
+    if (!btn) return;
+    const action = btn.dataset.act;
+    const pid = btn.dataset.pid;
+    console.log('[DOC CLICK]', action, pid);
+    if (action === 'anticipo') abrirAnticipo(pid);
+    else if (action === 'editar') editarProducto(pid);
+    else if (action === 'eliminar') confirmDelete(pid);
+    else if (action === 'completo') marcarCompleto(pid);
+    else if (action === 'comprado') marcarComprado(pid);
+  });
 }
 
 /* ---------- Inicialización ---------- */
