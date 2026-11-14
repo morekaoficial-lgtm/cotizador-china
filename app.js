@@ -988,8 +988,102 @@ function renderImportador() {
 }
 
 /* =====================================================================
-   REPORTES, HISTÓRICO, PROVEEDORES
+   REPORTES, HISTÓRICO, PROVEEDORES, EXCEL
    ===================================================================== */
+
+function exportarExcel() {
+  if (typeof XLSX === 'undefined') {
+    alert('Librería Excel no cargada. Recarga la página e intenta de nuevo.');
+    return;
+  }
+  const wb = XLSX.utils.book_new();
+  wb.Props = { Title: 'Cotizador China-MX', Subject: 'Borradores y Comprados', Author: 'Cotizador', CreatedDate: new Date() };
+
+  // Helper para construir filas
+  const buildRows = (productos) => {
+    const header = [
+      'Concepto', 'Proveedor', 'Estado', 'Cajas', 'Pzas/caja', 'Unidades',
+      'Volumen m³', 'Largo cm', 'Ancho cm', 'Alto cm', 'Volumen directo',
+      'EXW moneda orig.', 'EXW moneda', 'Flete Yiwu', 'Yiwu moneda',
+      'Gestor 5% (USD)', 'Importación m³ (USD)', 'Envío dinero 3% (USD)',
+      'Final MX (USD)', 'Final MX (MXN)', 'Anticipos (USD)',
+      'Pago Importador (USD)', 'Pago Importador (MXN)', 'TC ¥/US$', 'TC US$/MX$'
+    ];
+    const rows = [header];
+    productos.forEach(p => {
+      const tcRef = num(p.tc_ref) || 7.2;
+      const tcMXN = num(p.tc_usd_mxn) || num(state.tcUSDMXN) || 18.2;
+      const r = calcularDinero(p, state.tarifa, state.modoCobro, tcRef);
+      rows.push([
+        p.concepto || '',
+        p.proveedor || '',
+        ESTADO_LABEL[p.estado] || p.estado || '',
+        p.cajas || 0,
+        p.piezas_por_caja || 0,
+        r.totalUnidades,
+        r.volCob,
+        p.largo_cm || 0,
+        p.ancho_cm || 0,
+        p.alto_cm || 0,
+        p.volumen_directo ? 'Sí' : 'No',
+        p.precio_exw || 0,
+        p.precio_exw_moneda || 'USD',
+        p.costo_yiwu || 0,
+        p.costo_yiwu_moneda || 'USD',
+        r.gestorUSD,
+        r.importTotal,
+        r.envioDineroUSD,
+        r.finalMXTotal,
+        toMXN(r.finalMXTotal, tcMXN),
+        r.totalAntUSD,
+        r.pagoImportador,
+        toMXN(r.pagoImportador, tcMXN),
+        tcRef,
+        tcMXN
+      ]);
+    });
+    return rows;
+  };
+
+  // Hoja Borradores
+  const borradores = state.productos.filter(p => p.estado !== 'comprado').sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  if (borradores.length > 0) {
+    const wsB = XLSX.utils.aoa_to_sheet(buildRows(borradores));
+    wsB['!cols'] = [
+      {wch:30},{wch:18},{wch:16},{wch:8},{wch:10},{wch:10},
+      {wch:12},{wch:10},{wch:10},{wch:10},{wch:14},
+      {wch:14},{wch:10},{wch:12},{wch:10},
+      {wch:16},{wch:18},{wch:18},
+      {wch:14},{wch:14},{wch:14},
+      {wch:18},{wch:18},{wch:10},{wch:10}
+    ];
+    XLSX.utils.book_append_sheet(wb, wsB, 'Borradores');
+  }
+
+  // Hoja Comprados
+  const comprados = state.productos.filter(p => p.estado === 'comprado').sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  if (comprados.length > 0) {
+    const wsC = XLSX.utils.aoa_to_sheet(buildRows(comprados));
+    wsC['!cols'] = [
+      {wch:30},{wch:18},{wch:16},{wch:8},{wch:10},{wch:10},
+      {wch:12},{wch:10},{wch:10},{wch:10},{wch:14},
+      {wch:14},{wch:10},{wch:12},{wch:10},
+      {wch:16},{wch:18},{wch:18},
+      {wch:14},{wch:14},{wch:14},
+      {wch:18},{wch:18},{wch:10},{wch:10}
+    ];
+    XLSX.utils.book_append_sheet(wb, wsC, 'Comprados');
+  }
+
+  if (borradores.length === 0 && comprados.length === 0) {
+    alert('No hay productos para exportar.');
+    return;
+  }
+
+  const now = new Date();
+  const filename = 'Cotizador_ChinaMX_' + now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + '.xlsx';
+  XLSX.writeFile(wb, filename);
+}
 
 function generarReporte(tipo) {
   const tcRef = num(_('f_tc').value) || 7.2;
