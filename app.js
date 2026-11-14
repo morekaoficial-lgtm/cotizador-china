@@ -536,6 +536,27 @@ function cardProducto(p, tipo) {
       if (p.estado === 'borrador_inicial') btns += '<button data-act="completo" data-pid="' + dataId + '" class="btn-secondary text-sm px-4 py-2">✓ Marcar completo</button>';
       if (p.estado === 'borrador_completo') btns += '<button data-act="comprado" data-pid="' + dataId + '" class="btn-primary text-sm px-4 py-2">🛒 Marcar comprado</button>';
     }
+
+    return '<div class="card">' +
+      '<div class="flex flex-wrap gap-2 mb-3">' +
+        '<span class="badge-blue">' + (ESTADO_LABEL[p.estado] || p.estado) + '</span>' +
+        provBadge + badgeGestor +
+      '</div>' +
+      '<h4 class="font-bold text-xl mb-1 text-slate-800">' + esc(p.concepto) + '</h4>' +
+      '<p class="text-sm text-slate-500 mb-4">' + (p.cajas || 0) + ' cajas × ' + (p.piezas_por_caja || 0) + ' pzas = <b>' + r.totalUnidades.toLocaleString('es-MX') + '</b> unidades · <b>' + r.volCob.toFixed(4) + ' m³</b>' + (p.volumen_directo ? ' <span class="badge-purple text-xs">Volumen directo</span>' : '') + '</p>' +
+      '<div class="grid md:grid-cols-2 gap-5">' +
+        '<div class="bg-white border border-slate-200 rounded-xl p-4">' +
+          '<h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Desglose unitario</h5>' +
+          unitHtml +
+        '</div>' +
+        '<div class="bg-white border border-slate-200 rounded-xl p-4">' +
+          '<h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Desglose total del pedido</h5>' +
+          totHtml +
+        '</div>' +
+      '</div>' +
+      resumen3M +
+      '<div class="mt-4 flex gap-2 flex-wrap">' + btns + '</div>' +
+    '</div>';
   } catch (e) {
     console.error('cardProducto error:', e, p);
     return '<div class="card border-red-300"><h4 class="font-semibold text-red-600">Error al renderizar: ' + esc(e.message) + '</h4><p class="text-sm text-slate-500">Producto: ' + esc(p.concepto || 'sin nombre') + '</p></div>';
