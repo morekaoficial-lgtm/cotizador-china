@@ -412,8 +412,8 @@ const ESTADO_LABEL = { borrador_inicial: '\uD83D\uDCDD Borrador Inicial', borrad
 
 function cardProducto(p, tipo) {
   try {
-    const tcRef = p.tc_ref || 7.2;
-    const tcMXN = p.tc_usd_mxn || state.tcUSDMXN || 18.2;
+    const tcRef = num(p.tc_ref) || 7.2;
+    const tcMXN = num(p.tc_usd_mxn) || num(state.tcUSDMXN) || 18.2;
     const r = calcularDinero(p, state.tarifa, state.modoCobro, tcRef);
     const dataId = esc(p.id);
 
