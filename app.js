@@ -349,7 +349,7 @@ function renderLive() {
     rows.push(['\u2500\u2500 ANTICIPOS \u2500\u2500', '']);
     if (r.ant.length > 0) {
       r.ant.forEach(a => {
-        rows.push(['Anticipo ' + (a.fecha || '') + ' @ TC ' + (a.tc || tcRef).toFixed(4), money4(a.monto) + ' ' + (a.moneda || 'USD')]);
+        rows.push(['Anticipo ' + (a.fecha || '') + ' @ TC ' + (num(a.tc || tcRef)).toFixed(4), money4(a.monto) + ' ' + (a.moneda || 'USD')]);
       });
     } else {
       rows.push(['Sin anticipos registrados', '\u2014']);
@@ -951,7 +951,7 @@ function mostrarDetalleTotal(tipo) {
     html = '<table class="tbl"><thead><tr><th>Producto</th><th>Fecha</th><th>Monto</th><th>TC</th></tr></thead><tbody>';
     items.forEach(p => {
       (p.anticipos || []).forEach(a => {
-        html += '<tr><td>' + esc(p.concepto) + '</td><td class="num">' + (a.fecha || '') + '</td><td class="num">' + money4(a.monto) + ' ' + (a.moneda || 'USD') + '</td><td class="num">' + (a.tc || tcRef).toFixed(4) + '</td></tr>';
+        html += '<tr><td>' + esc(p.concepto) + '</td><td class="num">' + (a.fecha || '') + '</td><td class="num">' + money4(a.monto) + ' ' + (a.moneda || 'USD') + '</td><td class="num">' + (num(a.tc || tcRef)).toFixed(4) + '</td></tr>';
       });
     });
     html += '</tbody></table>';
@@ -1199,9 +1199,9 @@ function abrirAnticipo(id) {
   _('antInfo').textContent = p.concepto + ' \u00B7 ' + p.proveedor;
   _('antList').innerHTML = (p.anticipos || []).map((a, i) =>
     '<div class="flex justify-between items-center bg-white border rounded-md p-2 text-sm">' +
-    '<span>' + (a.fecha || '') + ' \u00B7 ' + money4(a.monto) + ' ' + (a.moneda || 'USD') + ' @ TC ' + (a.tc || p.tc_ref || 7.2).toFixed(4) + '</span>' +
+    '<span>' + (a.fecha || '') + ' \u00B7 ' + money4(a.monto) + ' ' + (a.moneda || 'USD') + ' @ TC ' + (num(a.tc || p.tc_ref || 7.2)).toFixed(4) + '</span>' +
     '<button onclick="eliminarAnticipo(' + i + ')" class="text-red-500 text-xs">Eliminar</button></div>').join('') || '<p class="text-sm text-slate-400">Sin anticipos</p>';
-  _('antMonto').value = ''; _('antMoneda').value = 'USD'; _('antTC').value = (p.tc_ref || 7.2).toFixed(4); _('antFecha').value = today();
+  _('antMonto').value = ''; _('antMoneda').value = 'USD'; _('antTC').value = (num(p.tc_ref) || 7.2).toFixed(4); _('antFecha').value = today();
   showModal('modalAnticipo');
 }
 
@@ -1252,8 +1252,8 @@ function editarProducto(id) {
   _('f_cajas').value = p.cajas || ''; _('f_piezas').value = p.piezas_por_caja || ''; _('f_precio').value = p.precio_exw || '';
   _('f_precio_moneda').value = p.precio_exw_moneda || 'USD'; _('f_peso').value = p.peso_kg || '';
   _('f_yiwu').value = p.costo_yiwu || ''; _('f_yiwu_moneda').value = p.costo_yiwu_moneda || 'USD';
-  _('f_tc').value = (p.tc_ref || 7.2).toFixed(4);
-  _('f_tc_mxn').value = (p.tc_usd_mxn || state.tcUSDMXN || 18.2).toFixed(4);
+  _('f_tc').value = (num(p.tc_ref) || 7.2).toFixed(4);
+  _('f_tc_mxn').value = (num(p.tc_usd_mxn) || num(state.tcUSDMXN) || 18.2).toFixed(4);
   _('f_gestor').checked = !!p.incluir_gestor;
   _('f_volumen_directo').checked = !!p.volumen_directo;
   _('f_volumen_m3').value = p.volumen_m3 || '';
@@ -1293,7 +1293,7 @@ function limpiarForm() {
   _('f_cajas').value = ''; _('f_piezas').value = ''; _('f_precio').value = '';
   _('f_precio_moneda').value = 'USD'; _('f_peso').value = '';
   _('f_yiwu').value = ''; _('f_yiwu_moneda').value = 'USD';
-  _('f_tc').value = '7.20'; _('f_tc_mxn').value = (state.tcUSDMXN || 18.2).toFixed(2);
+  _('f_tc').value = '7.20'; _('f_tc_mxn').value = (num(state.tcUSDMXN) || 18.2).toFixed(2);
   _('f_gestor').checked = false;
   _('f_volumen_directo').checked = false;
   _('f_volumen_m3').value = '';
